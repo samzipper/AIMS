@@ -10,7 +10,8 @@ library(whitebox, lib.loc=file.path("C:/Users", "samzipper", "scratch"))
 library(sf)
 library(raster)
 library(stars)
-library(mapview)
+library(mapview) # needs to be dev version:    remotes::install_github("r-spatial/mapview")
+mapviewOptions(fgb = FALSE)  # for pandoc export issue
 library(htmlwidgets)
 
 # load color palettes etc.
@@ -173,10 +174,11 @@ n_stics <- 50  # synoptic points
 buffer_dist <- 100  # [m] buffer distance between STICs - cannot be closer than this
 
 # load existing points
-sf_stics <- st_read(file.path("data", "STIClocations_20210421.kml")) %>% 
-  sf::st_transform(crs = p)
+current_stics <- st_read(file.path("data", "STIClocations_20210421.kml")) %>% 
+  sf::st_transform(crs = p) %>% 
+  st_zm()
 
-n_stics_current <- dim(sf_stics)[1]
+n_stics_current <- dim(current_stics)[1]
 
 #Convert stream network to point w/ TWI and Aws
 pnts<-
@@ -202,32 +204,32 @@ pnts<-
          scale_dist = scale(1/dist), 
          scale_area = scale(1/con_area_ha), 
          scale_sum = scale_twi + scale_area) %>% 
-         #scale_sum = scale_twi + scale_dist) %>% 
+  #scale_sum = scale_twi + scale_dist) %>% 
   arrange(scale_sum) %>% 
   mutate(scale_rank = seq(1, nrow(.)))
 
 # find closest pnt to current STIC locations
-sf_stics$i_closest <- NA
-for (i in 1:dim(sf_stics)[1]){
-  i_dist <- st_distance(sf_stics[i,], pnts)
-  sf_stics$i_closest[i] <- which.min(i_dist)
+current_stics$i_closest <- NA
+for (i in 1:dim(current_stics)[1]){
+  i_dist <- st_distance(current_stics[i,], pnts)
+  current_stics$i_closest[i] <- which.min(i_dist)
 }
 
 # add in data from pnts
-sf_stics[, c("twi", "con_area_ha", "elevation_m", "slope", "dist", 
-           "scale_twi", "scale_dist", "scale_area", "scale_sum")] <- 
-  sf::st_drop_geometry(pnts)[sf_stics$i_closest, c("twi", "con_area_ha", "elevation_m", "slope", "dist", 
+current_stics[, c("twi", "con_area_ha", "elevation_m", "slope", "dist", 
+             "scale_twi", "scale_dist", "scale_area", "scale_sum")] <- 
+  sf::st_drop_geometry(pnts)[current_stics$i_closest, c("twi", "con_area_ha", "elevation_m", "slope", "dist", 
                                                    "scale_twi", "scale_dist", "scale_area", "scale_sum")]
 
 # eliminate any pnts with con_area > the WQ sensor location (the streamline extends past it)
 pnts_trim <-
   pnts %>% 
-  subset(con_area_ha <= max(sf_stics$con_area_ha))
+  subset(con_area_ha <= max(current_stics$con_area_ha))
 
 #Select n points from across distribution
 rank<-seq(1,nrow(pnts_trim), length.out = (n_stics - n_stics_current + 1))
 rank<-rank[2:(n_stics - n_stics_current + 1)] %>% round(0)
-pnts_select <-
+new_stics <-
   pnts_trim %>% filter(scale_rank %in% rank)
 
 #Plot for testing 
@@ -235,15 +237,15 @@ p_map <-
   ggplot() +
   geom_sf(data = sheds, color = col.gray) +
   geom_sf(data = streams, color = "black") +
-  geom_sf(data = sf_stics, color = col.cat.red) +
-  geom_sf(data = pnts_select, color = col.cat.blu)
+  geom_sf(data = current_stics, color = col.cat.red) +
+  geom_sf(data = new_stics, color = col.cat.blu)
 
 # plot distribution of TWI and drainage area of selected points vs all points
 p_dist <-
   ggplot() +
   geom_point(data = pnts, aes(x = con_area_ha, y = twi), shape = 1, color = col.gray) +
-  geom_point(data = pnts_select, aes(x = con_area_ha, y = twi), color = col.cat.blu) +
-  geom_point(data = sf_stics, aes(x = con_area_ha, y = twi), color = col.cat.red) +
+  geom_point(data = new_stics, aes(x = con_area_ha, y = twi), color = col.cat.blu) +
+  geom_point(data = current_stics, aes(x = con_area_ha, y = twi), color = col.cat.red) +
   scale_x_continuous(name = "Drainage Area [ha]") +
   scale_y_continuous(name = "TWI")
 
@@ -253,3 +255,18 @@ p_dist <-
                   subtitle = "50 locations; red = existing STICs, blue = potential new sites") +
   ggsave(file.path("plots", "Konza_PlaceSTICs.png"),
          width = 10, height = 5, units = "in")
+
+
+## mapview format
+m<-
+  mapview(sheds,
+          alpha.regions=0.3) +
+  mapview(streams) +
+  mapview(new_stics, zcol='twi') +
+  mapview(current_stics, zcol='twi')
+m
+
+# export
+#Save map file
+
+mapshot(m, file.path("docs", "Konza_Synoptic.html"))
