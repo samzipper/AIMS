@@ -195,65 +195,124 @@ pnts<-
     con_area_ha = extract(fac, .)/10000,
     elevation_m = extract(dem, .),
     slope = extract(slope, .), 
-    dist = extract(dist, .))
+    dist = extract(dist, .),
+    pid = seq(1, nrow(.))) # a unique identifier for each point
 
-#Define 'scaled rank' based on twi and Aws
-pnts<-
+# find closest pnt to current STIC locations
+current_stics$closest_pid <- NA
+current_stics$closest_pid_dist <- NA
+for (i in 1:dim(current_stics)[1]){
+  i_dist <- as.numeric(st_distance(current_stics[i,], pnts))
+  # pid is the unique identifier in pnts
+  # figure out the closest pid to each current stic
+  current_stics$closest_pid[i] <- pnts$pid[which.min(i_dist)]
+  current_stics$closest_pid_dist[i] <- i_dist[which.min(i_dist)]
+  
+  # drop all scale_ranks that are within buffer distance, except the closest one
+  pid_drop <- pnts$pid[i_dist <= buffer_dist]
+  
+  # trim pnts
+  if (i == 1){
+    pid_drop_all <- pid_drop
+  } else {
+    pid_drop_all <- c(pid_drop_all, pid_drop)
+  }
+}
+
+# remove the closest scale rank to each point from the drop list, but don't drop from pnts yet
+pid_drop_all <- pid_drop_all[!(pid_drop_all %in% current_stics$closest_pid)]
+
+# add in data from pnts
+current_stics[, c("twi", "con_area_ha", "elevation_m", "slope", "dist")] <- 
+  sf::st_drop_geometry(pnts)[match(current_stics$closest_pid, pnts$pid), 
+                             c("twi", "con_area_ha", "elevation_m", "slope", "dist")]
+
+# eliminate pnts with con_area > the WQ sensor location (the streamline extends past it)
+# and calculate the variables you want to use to distribute stics
+pnts_all <-
   pnts %>% 
+  subset(con_area_ha <= max(current_stics$con_area_ha)) %>% 
   mutate(scale_twi = scale(twi), 
          scale_dist = scale(1/dist), 
          scale_area = scale(1/con_area_ha), 
          scale_sum = scale_twi + scale_area) %>% 
   #scale_sum = scale_twi + scale_dist) %>% 
   arrange(scale_sum) %>% 
-  mutate(scale_rank = seq(1, nrow(.)))
+  # split data up into n_stics equally sized groups
+  mutate(rank_group = floor(seq(from = 1, to = n_stics+0.99999, length.out = dim(.)[1])))
+#table(pnts_trim$rank_group)  # check if groups area equal in size - each has 576 or 577 points
 
-# find closest pnt to current STIC locations
-current_stics$i_closest <- NA
-for (i in 1:dim(current_stics)[1]){
-  i_dist <- st_distance(current_stics[i,], pnts)
-  current_stics$i_closest[i] <- which.min(i_dist)
+# first, eliminate the groups that already have a stic based on the current locations, 
+# and all points within the buffer distance of those
+pnts_trim <- 
+  pnts_all %>% 
+  subset(!(rank_group %in% pnts_trim$rank_group[pnts_trim$pid %in% current_stics$closest_pid])) %>% 
+  subset(!(pid %in% pid_drop_all))
+
+# place the remaining synoptic sites
+synoptic_pids <- current_stics$closest_pid
+groups_left <- unique(pnts_trim$rank_group) # rank_groups that still need stics
+set.seed(1)
+for (i in 1:length(groups_left)){
+  g <- groups_left[i] # get rank_group
+  g_pid <- sample(pnts_trim$pid[pnts_trim$rank_group == g], 1)  # select a pid from this group
+  synoptic_pids <- c(synoptic_pids, g_pid) # add to overall list of stics
+  i_dist <- as.numeric(st_distance(pnts_trim[pnts_trim$pid == g_pid, ], pnts_trim)) # get distance from this point to all other points
+  pnts_trim <- pnts_trim[i_dist >= buffer_dist, ] # drop points within buffer distance
 }
 
-# add in data from pnts
-current_stics[, c("twi", "con_area_ha", "elevation_m", "slope", "dist", 
-             "scale_twi", "scale_dist", "scale_area", "scale_sum")] <- 
-  sf::st_drop_geometry(pnts)[current_stics$i_closest, c("twi", "con_area_ha", "elevation_m", "slope", "dist", 
-                                                   "scale_twi", "scale_dist", "scale_area", "scale_sum")]
-
-# eliminate any pnts with con_area > the WQ sensor location (the streamline extends past it)
-pnts_trim <-
-  pnts %>% 
-  subset(con_area_ha <= max(current_stics$con_area_ha))
-
-#Select n points from across distribution
-rank<-seq(1,nrow(pnts_trim), length.out = (n_stics - n_stics_current + 1))
-rank<-rank[2:(n_stics - n_stics_current + 1)] %>% round(0)
-new_stics <-
-  pnts_trim %>% filter(scale_rank %in% rank)
+# add a column to the pnts_all data frame
+pnts_synoptic <- subset(pnts_all, pid %in% synoptic_pids) %>% 
+  mutate(Site = "New")
+pnts_synoptic$Site[pnts_synoptic$pid %in% current_stics$closest_pid] <- "Current"
 
 #Plot for testing 
 p_map <-
   ggplot() +
   geom_sf(data = sheds, color = col.gray) +
   geom_sf(data = streams, color = "black") +
-  geom_sf(data = current_stics, color = col.cat.red) +
-  geom_sf(data = new_stics, color = col.cat.blu)
+  geom_sf(data = pnts_synoptic, aes(color = Site)) +
+  scale_color_manual(values = c("Current" = col.cat.red, "New" = col.cat.blu))
 
 # plot distribution of TWI and drainage area of selected points vs all points
 p_dist <-
   ggplot() +
-  geom_point(data = pnts, aes(x = con_area_ha, y = twi), shape = 1, color = col.gray) +
-  geom_point(data = new_stics, aes(x = con_area_ha, y = twi), color = col.cat.blu) +
-  geom_point(data = current_stics, aes(x = con_area_ha, y = twi), color = col.cat.red) +
+  geom_point(data = pnts_all, aes(x = con_area_ha, y = twi), shape = 1, color = col.gray) +
+  geom_point(data = pnts_synoptic, aes(x = con_area_ha, y = twi, color = Site)) +
   scale_x_continuous(name = "Drainage Area [ha]") +
-  scale_y_continuous(name = "TWI")
+  scale_y_continuous(name = "TWI") +
+  scale_color_manual(values = c("Current" = col.cat.red, "New" = col.cat.blu))
 
 (p_map + p_dist) +
-  plot_layout(ncol = 2) + 
+  plot_layout(ncol = 2, guides = "collect") + 
   plot_annotation(title = "Distributed based on TWI and drainage area",
                   subtitle = "50 locations; red = existing STICs, blue = potential new sites") +
-  ggsave(file.path("plots", "Konza_PlaceSTICs.png"),
+  ggsave(file.path("plots", "Konza_PlaceSTICs_Map+Dist.png"),
+         width = 10, height = 4, units = "in")
+
+# k-s test and ecdfs for drainage area and twi
+ks_area <- ks.test(pnts_all$con_area_ha, pnts_synoptic$con_area_ha)
+p_ecfd_area <-
+  ggplot() + 
+  stat_ecdf(data = pnts_all, aes(x = con_area_ha), geom = "step", color = col.gray) + 
+  stat_ecdf(data = pnts_synoptic, aes(x = con_area_ha), geom = "step", color = col.cat.org) +
+  scale_x_continuous(name = "Drainage Area [ha]") +
+  scale_y_continuous(name = "Cumulative Proportion") +
+  labs(subtitle = paste0("K-S test p-value = ", round(ks_area$p.value, 2)))
+
+ks_twi <- ks.test(pnts_all$twi, pnts_synoptic$twi)
+p_ecfd_twi <-
+  ggplot() + 
+  stat_ecdf(data = pnts_all, aes(x = twi), geom = "step", color = col.gray) + 
+  stat_ecdf(data = pnts_synoptic, aes(x = twi), geom = "step", color = col.cat.org) +
+  scale_x_continuous(name = "TWI [-]") +
+  scale_y_continuous(name = "Cumulative Proportion") +
+  labs(subtitle = paste0("K-S test p-value = ", round(ks_twi$p.value, 2)))
+
+(p_ecfd_area + p_ecfd_twi) +
+  plot_layout(ncol = 2) + 
+  plot_annotation(title = "ECDFs of stream network (gray) and synoptic sites (orange)") +
+  ggsave(file.path("plots", "Konza_PlaceSTICs_ECDFs.png"),
          width = 10, height = 5, units = "in")
 
 
