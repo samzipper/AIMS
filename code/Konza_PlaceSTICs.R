@@ -246,7 +246,7 @@ pnts_all <-
 # and all points within the buffer distance of those
 pnts_trim <- 
   pnts_all %>% 
-  subset(!(rank_group %in% pnts_trim$rank_group[pnts_trim$pid %in% current_stics$closest_pid])) %>% 
+  subset(!(rank_group %in% pnts_all$rank_group[pnts_all$pid %in% current_stics$closest_pid])) %>% 
   subset(!(pid %in% pid_drop_all))
 
 # place the remaining synoptic sites
@@ -321,8 +321,7 @@ m<-
   mapview(sheds,
           alpha.regions=0.3) +
   mapview(streams) +
-  mapview(new_stics, zcol='twi') +
-  mapview(current_stics, zcol='twi')
+  mapview(pnts_synoptic, zcol='twi')
 m
 
 # export
