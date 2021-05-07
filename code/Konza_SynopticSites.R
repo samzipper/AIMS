@@ -183,10 +183,23 @@ current_stics <- st_read(file.path("data", "STIClocations_20210421.kml")) %>%
 # key sites that we want to put stics
 key_sites <- read_csv(file.path("data", "KeySites.csv")) %>% 
   sf::st_as_sf(coords = c("Long", "Lat"), crs = 4326) %>% 
-  sf::st_transform(crs = p) %>% 
-  dplyr::mutate(Description = "Weir")
+  sf::st_transform(crs = p)
 
-set_sites <- dplyr::bind_rows(current_stics, key_sites)
+# springs/seeps
+sf_springs <- read_csv(file.path("data", "SFKC_SeepsSprings.csv")) %>% 
+  sf::st_as_sf(coords = c("LONGdegW", "LATdegN"), crs = 4326) %>% 
+  sf::st_transform(crs = p) %>% 
+  dplyr::mutate(Description = "Spring/Seep")
+
+# choose a subset of springs as set points - going with 5 for now
+i_springs <- c(1, 3, 5, 8, 11, 15)
+ggplot() +
+  geom_sf(data=streams) +
+  geom_sf(data=sf_springs, color = "blue") +
+  geom_sf(data=sf_springs[i_springs,], color = "red")
+
+# compile set sites
+set_sites <- dplyr::bind_rows(current_stics, key_sites, sf_springs[i_springs, c("geometry", "Description", "Name")])
 
 n_stics_current <- dim(set_sites)[1]
 
@@ -248,17 +261,16 @@ pnts_all <-
          scale_dist = scale(1/dist), 
          scale_area = scale(1/con_area_ha), 
          scale_sum = scale_twi + scale_area) %>% 
-  #scale_sum = scale_twi + scale_dist) %>% 
   arrange(scale_sum) %>% 
   # split data up into n_stics equally sized groups
   mutate(rank_group = floor(seq(from = 1, to = n_stics+0.99999, length.out = dim(.)[1])))
 #table(pnts_trim$rank_group)  # check if groups area equal in size - each has 576 or 577 points
 
+# calculate quantiles
 twi_ecdf <- ecdf(pnts_all$twi)
 dist_ecdf <- ecdf(pnts_all$dist)
 area_ecdf <- ecdf(pnts_all$con_area_ha)
 
-# calculate quantiles
 pnts_all$quantile_twi <- twi_ecdf(pnts_all$twi)
 pnts_all$quantile_dist <- dist_ecdf(pnts_all$dist)
 pnts_all$quantile_area <- area_ecdf(pnts_all$con_area_ha)
@@ -312,21 +324,18 @@ for (i in 1:length(groups_left)){
 pnts_synoptic <- subset(pnts_all, pid %in% synoptic_pids) %>% 
   mutate(Site = "New")
 pnts_synoptic$Site[pnts_synoptic$pid %in% set_sites$closest_pid[set_sites$Description == "STIC"]] <- "STIC"
+pnts_synoptic$Site[pnts_synoptic$pid %in% set_sites$closest_pid[set_sites$Description == "Spring/Seep"]] <- "Spring/Seep"
 pnts_synoptic$Site[pnts_synoptic$pid %in% set_sites$closest_pid[set_sites$Description == "Weir"]] <- "Weir"
+pnts_synoptic$Site[pnts_synoptic$pid %in% set_sites$closest_pid[set_sites$Description == "Other"]] <- "New"
 
 ## plot
-# load springs/seeps to put on map
-sf_springs <- read_csv(file.path("data", "SFKC_SeepsSprings.csv")) %>% 
-  sf::st_as_sf(coords = c("LONGdegW", "LATdegN"), crs = 4326) %>% 
-  sf::st_transform(crs = p) 
-
 p_map <-
   ggplot() +
-  geom_sf(data = sheds, color = col.gray) +
-  geom_sf(data = streams, color = "black") +
+  #geom_sf(data = sheds, color = col.cat.yel, fill = "NA") +
+  geom_sf(data = streams, color = col.gray) +
   geom_sf(data = sf_springs, aes(shape = factor(SpringSeepClass))) +
   geom_sf(data = pnts_synoptic, aes(color = Site)) +
-  scale_color_manual(values = c("STIC" = col.cat.red, "Weir" = col.cat.org, "New" = col.cat.blu)) +
+  scale_color_manual(values = c("STIC" = col.cat.red, "Weir" = col.cat.org, "Spring/Seep" = col.cat.blu, "New" = "black")) +
   scale_shape_discrete(name = "Spring Class")
 
 # plot distribution of TWI and drainage area of selected points vs all points
@@ -336,7 +345,7 @@ p_dist <-
   geom_point(data = pnts_synoptic, aes(x = con_area_ha, y = twi, color = Site)) +
   scale_x_continuous(name = "Drainage Area [ha]") +
   scale_y_continuous(name = "TWI") +
-  scale_color_manual(values = c("STIC" = col.cat.red, "Weir" = col.cat.org, "New" = col.cat.blu))
+  scale_color_manual(values = c("STIC" = col.cat.red, "Weir" = col.cat.org, "Spring/Seep" = col.cat.blu, "New" = "black"))
 
 (p_map + p_dist) +
   plot_layout(ncol = 2, guides = "collect") + 
