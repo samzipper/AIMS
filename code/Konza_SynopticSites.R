@@ -192,7 +192,7 @@ sf_springs <- read_csv(file.path("data", "SFKC_SeepsSprings.csv")) %>%
   dplyr::mutate(Description = "Spring/Seep")
 
 # choose a subset of springs as set points - going with 5 for now
-i_springs <- c(1, 3, 5, 8, 11, 15)
+i_springs <- c(1, 3, 5, 6, 8, 11, 15)
 ggplot() +
   geom_sf(data=streams) +
   geom_sf(data=sf_springs, color = "blue") +
@@ -244,7 +244,7 @@ for (i in 1:dim(set_sites)[1]){
   }
 }
 
-# remove the closest scale rank to each point from the drop list, but don't drop from pnts yet
+# remove the closest pid to each point from the drop list (since we want to keep the point with the stic), but don't drop from pnts yet
 pid_drop_all <- pid_drop_all[!(pid_drop_all %in% set_sites$closest_pid)]
 
 # add in data from pnts
@@ -266,76 +266,181 @@ pnts_all <-
   mutate(rank_group = floor(seq(from = 1, to = n_stics+0.99999, length.out = dim(.)[1])))
 #table(pnts_trim$rank_group)  # check if groups area equal in size - each has 576 or 577 points
 
-# calculate quantiles
-twi_ecdf <- ecdf(pnts_all$twi)
-dist_ecdf <- ecdf(pnts_all$dist)
-area_ecdf <- ecdf(pnts_all$con_area_ha)
+## quantiles are not currently used for anything
+# # calculate quantiles
+# twi_ecdf <- ecdf(pnts_all$twi)
+# dist_ecdf <- ecdf(pnts_all$dist)
+# area_ecdf <- ecdf(pnts_all$con_area_ha)
+# 
+# pnts_all$quantile_twi <- twi_ecdf(pnts_all$twi)
+# pnts_all$quantile_dist <- dist_ecdf(pnts_all$dist)
+# pnts_all$quantile_area <- area_ecdf(pnts_all$con_area_ha)
+# 
+# # split quantiles up into breaks
+# n_breaks_quant <- 5
+# quantile_breaks <- seq(0, 1, length.out = n_breaks_quant+1)
+# pnts_all$quantile_group_twi <- cut(pnts_all$quantile_twi, breaks = quantile_breaks, include.lowest = T)
+# pnts_all$quantile_group_dist <- cut(pnts_all$quantile_dist, breaks = quantile_breaks, include.lowest = T)
+# pnts_all$quantile_group_area <- cut(pnts_all$quantile_area, breaks = quantile_breaks, include.lowest = T)
+# 
+# # combined twi and area quantile
+# pnts_all$quantile_group_select <- paste0(pnts_all$quantile_group_twi, "_", pnts_all$quantile_group_area)
 
-pnts_all$quantile_twi <- twi_ecdf(pnts_all$twi)
-pnts_all$quantile_dist <- dist_ecdf(pnts_all$dist)
-pnts_all$quantile_area <- area_ecdf(pnts_all$con_area_ha)
+## split drainage area into equal-interval groups, and make sure you have same # sites per group
+min_area <- min(pnts_all$con_area_ha)
+max_area <- max(pnts_all$con_area_ha)
+n_groups_area <- 10
 
-# split quantiles up into breaks
-n_breaks <- 5
-quantile_breaks <- seq(0, 1, length.out = n_breaks+1)
-pnts_all$quantile_group_twi <- cut(pnts_all$quantile_twi, breaks = quantile_breaks, include.lowest = T)
-pnts_all$quantile_group_dist <- cut(pnts_all$quantile_dist, breaks = quantile_breaks, include.lowest = T)
-pnts_all$quantile_group_area <- cut(pnts_all$quantile_area, breaks = quantile_breaks, include.lowest = T)
+# manually set upper breaks because there are so few points with large drainage area
+breaks_area <- c(seq(min_area-0.01, 32, length.out = n_groups_area - 1), 55, max_area + 1)
 
-# combined twi and area quantile
-pnts_all$quantile_group_select <- paste0(pnts_all$quantile_group_twi, "_", pnts_all$quantile_group_area)
+pnts_all$area_group <- cut(pnts_all$con_area_ha, breaks = breaks_area)
+table(pnts_all$area_group)
 
-# first, eliminate the groups that already have a stic based on the current locations, 
-# and all points within the buffer distance of those
-pnts_trim <- 
-  pnts_all %>% 
-  subset(!(rank_group %in% pnts_all$rank_group[pnts_all$pid %in% set_sites$closest_pid])) %>% 
-  subset(!(pid %in% pid_drop_all))
+ggplot(pnts_all, aes(x = con_area_ha, y = twi)) + 
+  geom_point() + 
+  geom_vline(xintercept = breaks_area, color = "red") +
+  scale_x_continuous(name = "Drainage Area [ha]") +
+  scale_y_continuous(name = "TWI") +
+  ggsave(file.path("plots", "Konza_SynopticSites_AreaGroups.png"),
+         width = 8, height = 8, units = "in")
+
+# calculate number of sites per group
+sites_per_group <- n_stics/n_groups_area
+set_sites$area_group <- cut(set_sites$con_area_ha, breaks = breaks_area)
 
 # define stream reaches you only want max of 1 sample on
 StreamReach_limit <- c(117, 121)
 ggplot(streams, aes(color = (FID %in% StreamReach_limit))) + geom_sf()
+pid_drop_all <- unique(c(pid_drop_all, pnts_all$pid[pnts_all$L1 %in% StreamReach_limit]))
 
-# find closest pnt to current STIC locations
-# place the remaining synoptic sites
-synoptic_pids <- set_sites$closest_pid
-groups_left <- unique(pnts_trim$rank_group) # rank_groups that still need stics
+# loop through groups, figure out number of sites already in that group, and then randomly assign the rest
+synoptic_pids <- set_sites$closest_pid # pids for set sites
+no_pts_count <- 0
 set.seed(1)
-for (i in 1:length(groups_left)){
-  g <- groups_left[i] # get rank_group
-  g_pid <- sample(pnts_trim$pid[pnts_trim$rank_group == g], 1)  # select a pid from this group
-  g_reach <- pnts_trim$StreamReach[pnts_trim$pid == g_pid]
-  synoptic_pids <- c(synoptic_pids, g_pid) # add to overall list of stics
-  i_dist <- as.numeric(st_distance(pnts_trim[pnts_trim$pid == g_pid, ], pnts_trim)) # get distance from this point to all other points
-  drop_dist <- which(i_dist < buffer_dist)
+for (g in rev(levels(pnts_all$area_group))){
+  #g <- rev(levels(pnts_all$area_group))[1]
   
-  # check if it is one of the limited stream reaches
-  if (g_reach %in% StreamReach_limit){
-    drop_reach <- which(pnts_trim$StreamReach == g_reach)
+  # figure out number of previously set sites in this group
+  sites_in_group <- sum(set_sites$area_group == g)
+  sites_to_place <- sites_per_group - sites_in_group
+  
+  # get points in this group
+  pnts_g <- 
+    pnts_all %>% 
+    subset(area_group == g)
+  
+  # within that group, break twi up into quantiles
+  g_twi_ecdf <- ecdf(pnts_g$twi)
+  pnts_g$quantile_twi <- g_twi_ecdf(pnts_g$twi)
+  pnts_g$quantile_group_twi <- cut(pnts_g$quantile_twi, breaks = seq(0, 1, length.out = sites_per_group+1), include.lowest = T)
+  
+  # determine quantiles of existing stics
+  q_set_sites <- as.numeric(pnts_g$quantile_group_twi[pnts_g$pid %in% set_sites$closest_pid])
+  
+  # figure out which quantile bands need stics
+  if (length(q_set_sites) > 0){
+    q_need_stics <- levels(pnts_g$quantile_group_twi)[-q_set_sites]
   } else {
-    drop_reach <- integer(0)
+    q_need_stics <- levels(pnts_g$quantile_group_twi)
   }
   
-  i_pnts_drop <- unique(c(drop_dist, drop_reach))
-  pnts_trim <- pnts_trim[-i_pnts_drop, ] # drop points that are within buffer distance or on same stream reach (if one of limited reach)
+    # if there are multiple existing sites in a single quantile group, there will be fewer available sites 
+  # then quantile groups to fill. in that case, just randomly choose
+  q_get_stics <- sample(q_need_stics, sites_to_place)
+  
+  # place stics
+  for (q in q_get_stics){
+    pnts_g_q <- 
+      pnts_g %>% 
+      subset(quantile_group_twi == q) %>% 
+      # remove points too close to existing locations
+      subset(!(pid %in% pid_drop_all))
+    
+    if (dim(pnts_g_q)[1] > 0){
+      # select a pid
+      g_pid <- sample(pnts_g_q$pid, 1)  # select a pid from this group
+      g_reach <- pnts_g_q$StreamReach[pnts_g_q$pid == g_pid]
+      synoptic_pids <- c(synoptic_pids, g_pid) # add to overall list of synoptic sites
+      i_dist <- as.numeric(st_distance(pnts_g_q[pnts_g_q$pid == g_pid, ], pnts_all)) # get distance from this point to all other points
+      drop_dist <- which(i_dist < buffer_dist)
+      
+      # check if it is one of the limited stream reaches
+      if (g_reach %in% StreamReach_limit){
+        drop_reach <- which(pnts_all$StreamReach == g_reach)
+      } else {
+        drop_reach <- integer(0)
+      }
+      
+      i_pnts_drop <- unique(c(drop_dist, drop_reach))
+      pid_drop_all <- unique(c(pid_drop_all, pnts_all$pid[i_pnts_drop]))
+    } else {
+      no_pts_count <- no_pts_count + 1
+      print(paste0("g = ", g, ", q = ", q, ", no points available"))
+    }
+    
+  }
+  
 }
+
+# see how many STICs are left and choose some locations to put them
+stics_to_place <- n_stics - length(synoptic_pids)
+
+# manually place points based on filling in gaps in network
+sf_manual <- 
+  dplyr::bind_rows(
+    tibble(long = c(-96.579758),
+           lat = c(39.090029),
+           Description = "Manual"),
+    tibble(long = c(-96.586978),
+           lat = c(39.086075),
+           Description = "Manual"),
+    tibble(long = c(-96.581670),
+           lat = c(39.079683),
+           Description = "Manual"),
+    tibble(long = c(-96.583217),
+           lat = c(39.084982),
+           Description = "Manual"),
+    tibble(long = c(-96.583753),
+           lat = c( 39.074821),
+           Description = "Manual"),
+    tibble(long = c(-96.582399),
+           lat = c(39.078786),
+           Description = "Manual")
+  ) %>% 
+  sf::st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  sf::st_transform(crs = p)
+
+sf_manual$closest_pid <- NA
+sf_manual$closest_pid_dist <- NA
+for (i in 1:dim(sf_manual)[1]){
+  i_dist <- as.numeric(st_distance(sf_manual[i,], pnts))
+  # pid is the unique identifier in pnts
+  # figure out the closest pid to each current stic
+  sf_manual$closest_pid[i] <- pnts$pid[which.min(i_dist)]
+  sf_manual$closest_pid_dist[i] <- i_dist[which.min(i_dist)]
+}
+
+synoptic_pids <- c(synoptic_pids, sf_manual$closest_pid)
+
+
 
 # add a column to the pnts_all data frame
 pnts_synoptic <- subset(pnts_all, pid %in% synoptic_pids) %>% 
-  mutate(Site = "New")
+  mutate(Site = "Random")
 pnts_synoptic$Site[pnts_synoptic$pid %in% set_sites$closest_pid[set_sites$Description == "STIC"]] <- "STIC"
 pnts_synoptic$Site[pnts_synoptic$pid %in% set_sites$closest_pid[set_sites$Description == "Spring/Seep"]] <- "Spring/Seep"
 pnts_synoptic$Site[pnts_synoptic$pid %in% set_sites$closest_pid[set_sites$Description == "Weir"]] <- "Weir"
-pnts_synoptic$Site[pnts_synoptic$pid %in% set_sites$closest_pid[set_sites$Description == "Other"]] <- "New"
+pnts_synoptic$Site[pnts_synoptic$pid %in% set_sites$closest_pid[set_sites$Description == "Other"]] <- "Random"
 
 ## plot
 p_map <-
   ggplot() +
   #geom_sf(data = sheds, color = col.cat.yel, fill = "NA") +
   geom_sf(data = streams, color = col.gray) +
-  geom_sf(data = sf_springs, aes(shape = factor(SpringSeepClass))) +
+  #geom_sf(data = sf_springs, aes(shape = factor(SpringSeepClass))) +
   geom_sf(data = pnts_synoptic, aes(color = Site)) +
-  scale_color_manual(values = c("STIC" = col.cat.red, "Weir" = col.cat.org, "Spring/Seep" = col.cat.blu, "New" = "black")) +
+  scale_color_manual(values = c("STIC" = col.cat.red, "Weir" = col.cat.org, "Spring/Seep" = col.cat.blu, "Random" = "black")) +
   scale_shape_discrete(name = "Spring Class")
 
 # plot distribution of TWI and drainage area of selected points vs all points
@@ -345,12 +450,11 @@ p_dist <-
   geom_point(data = pnts_synoptic, aes(x = con_area_ha, y = twi, color = Site)) +
   scale_x_continuous(name = "Drainage Area [ha]") +
   scale_y_continuous(name = "TWI") +
-  scale_color_manual(values = c("STIC" = col.cat.red, "Weir" = col.cat.org, "Spring/Seep" = col.cat.blu, "New" = "black"))
+  scale_color_manual(values = c("STIC" = col.cat.red, "Weir" = col.cat.org, "Spring/Seep" = col.cat.blu, "Random" = "black"))
 
 (p_map + p_dist) +
   plot_layout(ncol = 2, guides = "collect") + 
-  plot_annotation(title = "Distributed based on TWI and drainage area",
-                  subtitle = "50 locations; red = existing STICs, orange = weirs, blue = potential new sites") +
+  plot_annotation(title = "Distributed based on TWI and drainage area") +
   ggsave(file.path("plots", "Konza_PlaceSTICs_Map+Dist.png"),
          width = 10, height = 4, units = "in")
 
@@ -381,11 +485,11 @@ p_ecfd_twi <-
 
 
 ## mapview format
-m<-
+m <-
   mapview(sheds,
           alpha.regions=0.3) +
   mapview(streams) +
-  mapview(sf_springs, zcol = 'SpringSeepClass', col.regions = c(col.cat.red, col.cat.org, col.cat.yel), color = "white") +
+  #mapview(sf_springs, zcol = 'SpringSeepClass', col.regions = c(col.cat.red, col.cat.org, col.cat.yel), color = "white") +
   mapview(pnts_synoptic, zcol='twi')
 m
 
