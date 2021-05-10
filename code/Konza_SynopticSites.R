@@ -423,15 +423,27 @@ for (i in 1:dim(sf_manual)[1]){
 
 synoptic_pids <- c(synoptic_pids, sf_manual$closest_pid)
 
-
-
 # add a column to the pnts_all data frame
 pnts_synoptic <- subset(pnts_all, pid %in% synoptic_pids) %>% 
-  mutate(Site = "Random")
+  mutate(Site = "Random") %>% 
+  dplyr::arrange(StreamReach, -con_area_ha)
 pnts_synoptic$Site[pnts_synoptic$pid %in% set_sites$closest_pid[set_sites$Description == "STIC"]] <- "STIC"
 pnts_synoptic$Site[pnts_synoptic$pid %in% set_sites$closest_pid[set_sites$Description == "Spring/Seep"]] <- "Spring/Seep"
 pnts_synoptic$Site[pnts_synoptic$pid %in% set_sites$closest_pid[set_sites$Description == "Weir"]] <- "Weir"
 pnts_synoptic$Site[pnts_synoptic$pid %in% set_sites$closest_pid[set_sites$Description == "Other"]] <- "Random"
+
+pnts_synoptic$SiteID_Placeholder <- seq(1, 50, 1)
+
+# write a CSV file of lat/long'
+pnts_csv <- 
+  pnts_synoptic %>% 
+  st_transform(crs = 4326) %>% 
+  st_coordinates() %>% 
+  as_tibble() %>% 
+  rename(long = X, lat = Y) %>% 
+  mutate(SiteID_Placeholder = pnts_synoptic$SiteID_Placeholder,
+         TypeOfSite = pnts_synoptic$Site)
+write_csv(pnts_csv, file.path("results", "Konza_SynopticSites_20210510.csv"))
 
 ## plot
 p_map <-
