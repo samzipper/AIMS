@@ -264,13 +264,24 @@ pnts_all <-
 pnts_combo <- 
   pnts_combo %>% 
   group_by(ShedName) %>% 
-  arrange(-con_area_ha, SiteID_Placeholder) %>% 
+  arrange(-con_area_ha, -SiteID_Placeholder) %>% 
   mutate(ShedCount = 1:n())
 
 # assign AIMS location id
 pnts_combo$AIMS_LocationID <- paste0(pnts_combo$ShedName, sprintf("%02d", pnts_combo$ShedCount))
 
-# write a CSV file of lat/long'
+# figure out if it needs a STIC and how many to put there
+pnts_combo$has_STIC <- pnts_combo$TypeOfSite == "STIC"
+n_need_STIC <- sum(!pnts_combo$has_STIC)
+n_save_STIC <- 3  # save 3 STICs just for additional sites that we might want to instrument
+n_total_STIC <- 75 # 75 STICs to distribute
+set.seed(11)
+pnts_combo$n_STIC <- sample(c(1,2), dim(pnts_combo)[1], replace = T)
+
+# any site with an existing STIC, make sure it is 2
+pnts_combo$n_STIC[pnts_combo$TypeOfSite=="STIC"] <- 2
+
+# write a CSV file of lat/long
 pnts_csv <- 
   pnts_combo %>% 
   st_transform(crs = 4326) %>% 
@@ -278,7 +289,9 @@ pnts_csv <-
   as_tibble() %>% 
   rename(long = X, lat = Y) %>% 
   mutate(AIMS_LocationID = pnts_combo$AIMS_LocationID,
-         TypeOfSite = pnts_combo$TypeOfSite)
+         TypeOfSite = pnts_combo$TypeOfSite,
+         NumberOfSTICs = pnts_combo$n_STIC) %>% 
+  arrange(AIMS_LocationID)
 write_csv(pnts_csv, file.path("results", "Konza_SynopticSites_20210519-STICinstalls.csv"))
 
 
@@ -340,7 +353,7 @@ m <-
           alpha.regions=0.3) +
   mapview(streams) +
   #mapview(sf_springs, zcol = 'SpringSeepClass', col.regions = c(col.cat.red, col.cat.org, col.cat.yel), color = "white") +
-  mapview(pnts_combo, zcol='twi', label = "AIMS_LocationID")
+  mapview(pnts_combo, zcol='n_STIC', label = "AIMS_LocationID")
 m
 
 # export
