@@ -219,8 +219,18 @@ pnts_new <-
     39.088418, -96.576964,   47,                  "Weir",
     39.091266, -96.586322,   14,                  "Random",  # move above road crossing
     39.091032, -96.578487,   49,                  "Random",  # move further up in watershed
-    39.079947, -96.581054,   1,                   "Random"   # move back from confluence
-)
+    39.079947, -96.581054,   1,                   "Random",   # move back from confluence
+    39.082490, -96.574055,   17,                  "Spring/Seep",  # move to spring in N20
+    39.073111, -96.584111,   44,                  "Random",   # move upstream
+    39.085978, -96.568083,   45,                  "Random",   # move upstream
+    39.071693, -96.584225,   18,                  "Random",   # upstream of final seep in N4d
+    39.085015, -96.575862,   21,                  "Random",   # scoot upstream a bit
+    39.082500, -96.584037,   28,                  "Random",   # scoot downstream a bit
+    39.084821, -96.593399,   29,                  "Random",   # scoot downstream a bit
+    39.088136, -96.589603,   33,                  "Random",   # scoot upstream a bit
+    39.087065, -96.571071,   46,                  "Random",   # scoot upstream a bit
+    39.089186, -96.573760,   48,                  "Random",   # scoot downstream a bit
+  )
 
 # replace original points with new points
 pnts_combo <- 
@@ -244,9 +254,17 @@ for (i in 1:dim(pnts_combo)[1]){
 # add in data from pnts
 pnts_combo[, c("twi", "con_area_ha", "elevation_m", "slope", "dist", "ShedName")] <- 
   sf::st_drop_geometry(pnts)[match(pnts_combo$closest_pid, pnts$pid), 
-                             c("twi", "con_area_ha", "elevation_m", "slope", "dist", "ShedName")] %>% 
+                             c("twi", "con_area_ha", "elevation_m", "slope", "dist", "ShedName")]
+
+pnts_all <-
+  pnts %>% 
+  subset(con_area_ha <= max(pnts_combo$con_area_ha))
+
+# rank within watershed
+pnts_combo <- 
+  pnts_combo %>% 
   group_by(ShedName) %>% 
-  arrange(-con_area_ha) %>% 
+  arrange(-con_area_ha, SiteID_Placeholder) %>% 
   mutate(ShedCount = 1:n())
 
 # assign AIMS location id
@@ -261,7 +279,7 @@ pnts_csv <-
   rename(long = X, lat = Y) %>% 
   mutate(AIMS_LocationID = pnts_combo$AIMS_LocationID,
          TypeOfSite = pnts_combo$TypeOfSite)
-write_csv(pnts_csv, file.path("results", "Konza_SynopticSites_20210517-STICinstalls.csv"))
+write_csv(pnts_csv, file.path("results", "Konza_SynopticSites_20210519-STICinstalls.csv"))
 
 
 
@@ -273,14 +291,13 @@ p_map <-
   geom_sf(data = streams, color = col.gray) +
   #geom_sf(data = sf_springs, aes(shape = factor(SpringSeepClass))) +
   geom_sf(data = pnts_combo, aes(color = TypeOfSite)) +
-  scale_color_manual(values = c("STIC" = col.cat.red, "Weir" = col.cat.org, "Spring/Seep" = col.cat.blu, "Random" = "black")) +
-  scale_shape_discrete(name = "Spring Class")
+  scale_color_manual(values = c("STIC" = col.cat.red, "Weir" = col.cat.org, "Spring/Seep" = col.cat.blu, "Random" = "black"))
 
 # plot distribution of TWI and drainage area of selected points vs all points
 p_dist <-
   ggplot() +
   geom_point(data = pnts_all, aes(x = con_area_ha, y = twi), shape = 1, color = col.gray) +
-  geom_point(data = pnts_synoptic, aes(x = con_area_ha, y = twi, color = Site)) +
+  geom_point(data = pnts_combo, aes(x = con_area_ha, y = twi, color = TypeOfSite)) +
   scale_x_continuous(name = "Drainage Area [ha]") +
   scale_y_continuous(name = "TWI") +
   scale_color_manual(values = c("STIC" = col.cat.red, "Weir" = col.cat.org, "Spring/Seep" = col.cat.blu, "Random" = "black"))
@@ -292,20 +309,20 @@ p_dist <-
          width = 10, height = 4, units = "in")
 
 # k-s test and ecdfs for drainage area and twi
-ks_area <- ks.test(pnts_all$con_area_ha, pnts_synoptic$con_area_ha)
+ks_area <- ks.test(pnts_all$con_area_ha, pnts_combo$con_area_ha)
 p_ecfd_area <-
   ggplot() + 
   stat_ecdf(data = pnts_all, aes(x = con_area_ha), geom = "step", color = col.gray) + 
-  stat_ecdf(data = pnts_synoptic, aes(x = con_area_ha), geom = "step", color = col.cat.org) +
+  stat_ecdf(data = pnts_combo, aes(x = con_area_ha), geom = "step", color = col.cat.org) +
   scale_x_continuous(name = "Drainage Area [ha]") +
   scale_y_continuous(name = "Cumulative Proportion") +
   labs(subtitle = paste0("K-S test p-value = ", round(ks_area$p.value, 2)))
 
-ks_twi <- ks.test(pnts_all$twi, pnts_synoptic$twi)
+ks_twi <- ks.test(pnts_all$twi, pnts_combo$twi)
 p_ecfd_twi <-
   ggplot() + 
   stat_ecdf(data = pnts_all, aes(x = twi), geom = "step", color = col.gray) + 
-  stat_ecdf(data = pnts_synoptic, aes(x = twi), geom = "step", color = col.cat.org) +
+  stat_ecdf(data = pnts_combo, aes(x = twi), geom = "step", color = col.cat.org) +
   scale_x_continuous(name = "TWI [-]") +
   scale_y_continuous(name = "Cumulative Proportion") +
   labs(subtitle = paste0("K-S test p-value = ", round(ks_twi$p.value, 2)))
@@ -323,7 +340,7 @@ m <-
           alpha.regions=0.3) +
   mapview(streams) +
   #mapview(sf_springs, zcol = 'SpringSeepClass', col.regions = c(col.cat.red, col.cat.org, col.cat.yel), color = "white") +
-  mapview(pnts_synoptic, zcol='twi')
+  mapview(pnts_combo, zcol='twi', label = "AIMS_LocationID")
 m
 
 # export
