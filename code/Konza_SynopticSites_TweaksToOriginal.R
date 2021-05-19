@@ -164,7 +164,8 @@ streams$ShedName[streams$FID %in% c(117, 121)] <- "SFT" # South Fork trib
 streams$ShedName[streams$FID %in% c(68, 67, 66)] <- "02M" # N02B main
 streams$ShedName[streams$FID %in% c(84, 112)] <- "02T" # N02B trib
 streams$ShedName[streams$FID %in% c(28, 27, 26, 25, 24)] <- "04M" # N04D main
-streams$ShedName[streams$FID %in% c(75, 83, 63, 60)] <- "04T" # N04D main
+streams$ShedName[streams$FID %in% c(83, 63, 60)] <- "04T" # N04D main
+streams$ShedName[streams$FID %in% c(75)] <- "04W" # N04D west trib
 streams$ShedName[streams$FID %in% c(56, 55, 54, 53)] <- "01M" # N01B main
 streams$ShedName[streams$FID %in% c(81, 61, 62, 69, 73)] <- "01T" # N01B trib
 streams$ShedName[streams$FID %in% c(86, 85)] <- "20M" # N20B main
@@ -230,6 +231,7 @@ pnts_new <-
     39.088136, -96.589603,   33,                  "Random",   # scoot upstream a bit
     39.087065, -96.571071,   46,                  "Random",   # scoot upstream a bit
     39.089186, -96.573760,   48,                  "Random",   # scoot downstream a bit
+    39.088164, -96.571735,   3,                  "Random",   # add one to
   )
 
 # replace original points with new points
