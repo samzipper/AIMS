@@ -34,12 +34,13 @@ pnts_stic <-
   file.path(stic_dir, "Konza_AllSTICs.csv") %>% 
   read_csv() %>% 
   sf::st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
-  sf::st_transform(crs = p)
+  sf::st_transform(crs = p) %>% 
+  dplyr::select(STIC_name)
 
 ## mapview format
 m <-
-  mapview(streams) +
-  mapview(pnts_stic, label = "STIC_name")
+  mapview(streams, legend = F) +
+  mapview(pnts_stic, label = "STIC_name", legend = F)
 m
 
 # export
