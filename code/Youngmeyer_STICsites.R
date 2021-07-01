@@ -294,6 +294,9 @@ for (g in rev(levels(pnts_all$area_group))){
 # see how many STICs are left and choose some locations to put them
 stics_to_place <- n_stics - length(STIC_pids) 
 
+# points to drop, which can then be placed manually
+STIC_pids <- STIC_pids[STIC_pids != 14216]
+
 # manually place points based on filling in gaps in network
 sf_manual <- 
   dplyr::bind_rows(
@@ -305,6 +308,9 @@ sf_manual <-
            Description = "Manual"),
     tibble(long = -96.502422,
            lat = 37.565530,
+           Description = "Manual"),
+    tibble(long = -96.500436,
+           lat = 37.559392,
            Description = "Manual")
   ) %>% 
   sf::st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
@@ -370,5 +376,22 @@ m
 
 # export
 #Save map file
-
 mapshot(m, file.path("docs", "Youngmeyer_STICs.html"))
+
+
+
+## map of overall youngmeyer TWI
+pnts_map <- 
+  pnts_all %>% 
+  dplyr::arrange(con_area_ha)
+pnts_map <- pnts_map[floor(seq(from = 1, to = dim(pnts_map)[1], length.out = 500)), ]
+
+m2<-mapview(
+  sheds,
+  alpha.regions=0.3) +
+  mapview(streams) +
+  mapview(pnts_map, zcol='twi') 
+m2
+
+#export
+mapshot(m2, file.path("docs", "Youngmeyer_TWI.html"), selfcontained=T)
