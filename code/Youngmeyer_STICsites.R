@@ -296,6 +296,7 @@ stics_to_place <- n_stics - length(STIC_pids)
 
 # points to drop, which can then be placed manually
 STIC_pids <- STIC_pids[STIC_pids != 14216]
+STIC_pids <- STIC_pids[STIC_pids != 14571]
 
 # manually place points based on filling in gaps in network
 sf_manual <- 
@@ -311,6 +312,9 @@ sf_manual <-
            Description = "Manual"),
     tibble(long = -96.500436,
            lat = 37.559392,
+           Description = "Manual"),
+    tibble(long = -96.493321,
+           lat = 37.564879,
            Description = "Manual")
   ) %>% 
   sf::st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
@@ -332,7 +336,39 @@ STIC_pids <- c(STIC_pids, sf_manual$closest_pid)
 pnts_synoptic <- subset(pnts_all, pid %in% STIC_pids) %>% 
   dplyr::arrange(StreamReach, -con_area_ha)
 
-pnts_synoptic$SiteID_Placeholder <- seq(1, dim(pnts_synoptic)[1], 1)
+# determine site name - by manually looking at PIDs and comparing to google earth map
+df_shedname <- 
+  tribble(
+    ~pid,      ~ShedName,
+    3080, "ENM",
+    2865, "ENM",
+    2576, "ENM",
+    2349, "ENM",
+    5486, "ENM",
+    10196, "ENM",
+    9745, "ENM",
+    8917, "ENM",
+    11806, "EN5",
+    12973, "EN4",
+    13897, "EN1",
+    1820, "EN3",
+    1477, "EN3",
+    942, "EN3",
+    97, "EN3",
+    5192, "EN2",
+    4221, "EN2",
+    7591, "EN2",
+    7129, "EN2",
+    3344, "EN2"
+  )
+
+# create AIMS location ID
+pnts_synoptic <- 
+  dplyr::left_join(pnts_synoptic, df_shedname, by = "pid") %>% 
+  group_by(ShedName) %>% 
+  arrange(-con_area_ha, -SiteID_Placeholder) %>% 
+  mutate(ShedCount = 1:n())
+pnts_synoptic$AIMS_LocationID <- paste0(pnts_synoptic$ShedName, sprintf("%02d", pnts_synoptic$ShedCount))
 
 # write a CSV file of lat/long'
 pnts_csv <- 
@@ -341,7 +377,7 @@ pnts_csv <-
   st_coordinates() %>% 
   as_tibble() %>% 
   rename(long = X, lat = Y) %>% 
-  mutate(SiteID_Placeholder = pnts_synoptic$SiteID_Placeholder)
+  mutate(AIMS_LocationID = pnts_synoptic$AIMS_LocationID)
 write_csv(pnts_csv, file.path("results", "Youngmeyer_STICsites_20210701.csv"))
 
 ## plot
