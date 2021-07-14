@@ -26,8 +26,8 @@ output_dir<-file.path(data_dir, "watersheds+twi")
 dem_in_N <- raster(file.path(data_dir,"terrain", "BE_2013_14SQG2060", "BE_14SQG2060.img"))
 dem_in_S <- raster(file.path(data_dir,"terrain", "BE_2013_14SQG2055", "BE_14SQG2055.img"))
 dem_in <- raster::merge(dem_in_N, dem_in_S)
-writeRaster(dem_in, file.path(scratch_dir,"dem.tif"), overwrite=T) # write to scratch directory
-dem <- raster(file.path(scratch_dir,"dem.tif"))
+writeRaster(dem_in, file.path(scratch_dir,"youngmeyer_dem.tif"), overwrite=T) # write to scratch directory
+dem <- raster(file.path(scratch_dir,"youngmeyer_dem.tif"))
 
 #master crs
 p<-"+proj=utm +zone=14 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"
@@ -49,91 +49,91 @@ threshold <- 22500
 
 #Smooth DEM
 wbt_gaussian_filter(
-  input = "dem.tif", 
-  output = "dem_smoothed.tif",
+  input = "youngmeyer_dem.tif", 
+  output = "youngmeyer_dem_smoothed.tif",
   wd = scratch_dir)
 
 #breach depressions
 wbt_breach_depressions(
-  dem =    "dem_smoothed.tif",
-  output = "dem_breached.tif",
+  dem =    "youngmeyer_dem_smoothed.tif",
+  output = "youngmeyer_dem_breached.tif",
   fill_pits = F,
   wd = scratch_dir)
 
 #Estimate slope
 wbt_slope(
-  dem ="dem_breached.tif",
-  output = "slope.tif", 
+  dem ="youngmeyer_dem_breached.tif",
+  output = "youngmeyer_slope.tif", 
   wd=scratch_dir
 )
 
 #Flow direction raster
 wbt_d8_pointer(
-  dem= "dem_breached.tif",
-  output ="fdr.tif",
+  dem= "youngmeyer_dem_breached.tif",
+  output ="youngmeyer_fdr.tif",
   wd = scratch_dir
 )
 
 #Flow accumulation raster
 wbt_d8_flow_accumulation(
-  input = "dem_breached.tif",
+  input = "youngmeyer_dem_breached.tif",
   out_type= "cells",
-  output = "fac.tif",
+  output = "youngmeyer_fac.tif",
   wd = scratch_dir
 )
 
 #Create Stream Layer
 wbt_extract_streams(
-  flow_accum = "fac.tif",
-  output = "stream.tif",
+  flow_accum = "youngmeyer_fac.tif",
+  output = "youngmeyer_stream.tif",
   threshold = threshold,
   wd = scratch_dir
 )
 
 #estimate SCA
 wbt_d8_flow_accumulation(
-  input = "dem_breached.tif",
-  output = "sca.tif",
+  input = "youngmeyer_dem_breached.tif",
+  output = "youngmeyer_sca.tif",
   out_type="specific contributing area", 
   wd = scratch_dir
 )
 
 #Run TWI Function
 wbt_wetness_index(
-  sca    = "sca.tif",
-  slope  = "slope.tif",
-  output = "twi.tif",
+  sca    = "youngmeyer_sca.tif",
+  slope  = "youngmeyer_slope.tif",
+  output = "youngmeyer_twi.tif",
   wd     = scratch_dir
 )
 
 #Estimate distance to outlet
 wbt_distance_to_outlet(
-  d8_pntr = 'fdr.tif',
-  streams = "stream.tif",
-  output =  'dist.tif', 
+  d8_pntr = 'youngmeyer_fdr.tif',
+  streams = "youngmeyer_stream.tif",
+  output =  'youngmeyer_dist.tif', 
   wd =       scratch_dir
 )
 
 #Paste point points in scratch dir
-st_write(pp, file.path(scratch_dir,"pp.shp"), delete_dsn = T)
+st_write(pp, file.path(scratch_dir,"youngmeyer_pp.shp"), delete_dsn = T)
 
 #Snap pour point
 wbt_jenson_snap_pour_points(
-  pour_pts = "pp.shp", 
-  streams = "stream.tif",
+  pour_pts = "youngmeyer_pp.shp", 
+  streams = "youngmeyer_stream.tif",
   snap_dist = 100,
-  output =  "snap.shp",
+  output =  "youngmeyer_snap.shp",
   wd= scratch_dir)
 
 #delineate watershed 
 wbt_watershed(
-  d8_pntr = "fdr.tif",
-  pour_pts = "snap.shp", 
-  output = "sheds.tif" ,
+  d8_pntr = "youngmeyer_fdr.tif",
+  pour_pts = "youngmeyer_snap.shp", 
+  output = "youngmeyer_sheds.tif" ,
   wd=scratch_dir)
 
 #load watershed raster into R env
-sheds<-raster(file.path(scratch_dir,"sheds.tif"))
+sheds<-raster(file.path(scratch_dir,"youngmeyer_sheds.tif"))
 
 #Convert raster to vector
 sheds<- sheds %>% st_as_stars() %>% st_as_sf(., merge = TRUE)
@@ -145,14 +145,14 @@ sheds$name <-name
 #B. Stream Analysis ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #Convert to polygon
 wbt_raster_streams_to_vector(
-  streams = "stream.tif",
-  d8_pntr = "fdr.tif",
-  output = "streams.shp",
+  streams = "youngmeyer_stream.tif",
+  d8_pntr = "youngmeyer_fdr.tif",
+  output = "youngmeyer_streams.shp",
   wd = scratch_dir
 )
 
 #Bring stream polygon into r environment
-streams<-st_read(file.path(scratch_dir, "streams.shp"))
+streams<-st_read(file.path(scratch_dir, "youngmeyer_streams.shp"))
 st_crs(streams)<-st_crs(dem@crs)
 
 #Crop sheds to basin
@@ -160,15 +160,15 @@ streams<-streams[sheds,]
 streams$L1 <- seq(1, dim(streams)[1])
 
 #Bring twi, fac, and slope into R env
-twi<-raster(file.path(scratch_dir,"twi.tif"))
+twi<-raster(file.path(scratch_dir,"youngmeyer_twi.tif"))
 twi<-crop(twi, sheds)
-fac<-raster(file.path(scratch_dir,"fac.tif"))
+fac<-raster(file.path(scratch_dir,"youngmeyer_fac.tif"))
 fac<-crop(fac, sheds)
-slope<-raster(file.path(scratch_dir,"slope.tif"))
+slope<-raster(file.path(scratch_dir,"youngmeyer_slope.tif"))
 slope<-crop(slope, sheds)
-dem<-raster(file.path(scratch_dir,"dem_smoothed.tif"))
+dem<-raster(file.path(scratch_dir,"youngmeyer_dem_smoothed.tif"))
 dem<-crop(dem, sheds)
-dist<-raster(file.path(scratch_dir,"dist.tif"))
+dist<-raster(file.path(scratch_dir,"youngmeyer_dist.tif"))
 dist<-crop(dist, sheds)
 
 #EStimate location of STICS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -333,8 +333,50 @@ for (i in 1:dim(sf_manual)[1]){
 STIC_pids <- c(STIC_pids, sf_manual$closest_pid)
 
 # add a column to the pnts_all data frame
-pnts_synoptic <- subset(pnts_all, pid %in% STIC_pids) %>% 
-  dplyr::arrange(StreamReach, -con_area_ha)
+pnts_STIC <- subset(pnts_all, pid %in% STIC_pids) %>% 
+  dplyr::arrange(StreamReach, -con_area_ha) %>% 
+  dplyr::mutate(Description = "STIC")
+
+## now, figure out piezometers
+
+# manually place points based on coordinates from google maps
+sf_manual_piezo <- 
+  dplyr::bind_rows(
+    tibble(long = c(-96.493419),
+           lat = c(37.563267),
+           Description = "EN3 outlet"),
+    tibble(long = -96.495642,
+           lat = 37.564804,
+           Description = "EN2 outlet"),
+    tibble(long = -96.494606,
+           lat = 37.565351,
+           Description = "ENM outlet"),
+    tibble(long = -96.502665,
+           lat = 37.565483,
+           Description = "ENM upstream"),
+    tibble(long = -96.500369,
+           lat = 37.566027,
+           Description = "ENM midstream"),
+    tibble(long = -96.497349,
+           lat = 37.565436,
+           Description = "ENM downstream")
+  ) %>% 
+  sf::st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
+  sf::st_transform(crs = p)
+
+sf_manual_piezo$closest_pid <- NA
+sf_manual_piezo$closest_pid_dist <- NA
+for (i in 1:dim(sf_manual_piezo)[1]){
+  i_dist <- as.numeric(st_distance(sf_manual_piezo[i,], pnts))
+  # pid is the unique identifier in pnts
+  # figure out the closest pid to each current stic
+  sf_manual_piezo$closest_pid[i] <- pnts$pid[which.min(i_dist)]
+  sf_manual_piezo$closest_pid_dist[i] <- i_dist[which.min(i_dist)]
+}
+
+pnts_piezo <- subset(pnts_all, pid %in% sf_manual_piezo$closest_pid) %>% 
+  dplyr::arrange(StreamReach, -con_area_ha) %>% 
+  dplyr::mutate(Description = "Piezo")
 
 # determine site name - by manually looking at PIDs and comparing to google earth map
 df_shedname <- 
@@ -359,26 +401,37 @@ df_shedname <-
     4221, "EN2",
     7591, "EN2",
     7129, "EN2",
-    3344, "EN2"
+    3344, "EN2",
+    5150, "EN2",
+    10732, "ENM",
+    10140, "ENM",
+    1927, "EN3",
+    9370, "ENM",
+    8871, "ENM"
   )
 
 # create AIMS location ID
-pnts_synoptic <- 
-  dplyr::left_join(pnts_synoptic, df_shedname, by = "pid") %>% 
+pnts_STIC.piezo <- 
+  dplyr::bind_rows(pnts_STIC, pnts_piezo) %>% 
+  dplyr::left_join(df_shedname, by = "pid") %>% 
   group_by(ShedName) %>% 
-  arrange(-con_area_ha, -SiteID_Placeholder) %>% 
+  arrange(-con_area_ha) %>% 
   mutate(ShedCount = 1:n())
-pnts_synoptic$AIMS_LocationID <- paste0(pnts_synoptic$ShedName, sprintf("%02d", pnts_synoptic$ShedCount))
+pnts_STIC.piezo$AIMS_LocationID <- paste0(pnts_STIC.piezo$ShedName, sprintf("%02d", pnts_STIC.piezo$ShedCount))
+
+# ENM01 shuold be supersensor: STIC + piezo
+pnts_STIC.piezo$Description[pnts_STIC.piezo$AIMS_LocationID == "ENM01"] <- "Supersensor"
 
 # write a CSV file of lat/long'
 pnts_csv <- 
-  pnts_synoptic %>% 
+  pnts_STIC.piezo %>% 
   st_transform(crs = 4326) %>% 
   st_coordinates() %>% 
   as_tibble() %>% 
   rename(long = X, lat = Y) %>% 
-  mutate(AIMS_LocationID = pnts_synoptic$AIMS_LocationID)
-write_csv(pnts_csv, file.path("results", "Youngmeyer_STICsites_20210701.csv"))
+  mutate(AIMS_LocationID = pnts_STIC.piezo$AIMS_LocationID,
+         Description = pnts_STIC.piezo$Description)
+write_csv(pnts_csv, file.path("results", "Youngmeyer_STIC+Piezo_20210714.csv"))
 
 ## plot
 p_map <-
@@ -386,13 +439,13 @@ p_map <-
   #geom_sf(data = sheds, color = col.cat.yel, fill = "NA") +
   geom_sf(data = streams, color = col.gray) +
   #geom_sf(data = sf_springs, aes(shape = factor(SpringSeepClass))) +
-  geom_sf(data = pnts_synoptic, color = "red")
+  geom_sf(data = pnts_STIC.piezo, aes(color = Description))
 
 # plot distribution of TWI and drainage area of selected points vs all points
 p_dist <-
   ggplot() +
   geom_point(data = pnts_all, aes(x = con_area_ha, y = twi), shape = 1, color = col.gray) +
-  geom_point(data = pnts_synoptic, aes(x = con_area_ha, y = twi), color = "red") +
+  geom_point(data = pnts_STIC.piezo, aes(x = con_area_ha, y = twi, color = Description)) +
   scale_x_continuous(name = "Drainage Area [ha]") +
   scale_y_continuous(name = "TWI")
 
@@ -407,12 +460,12 @@ m <-
   mapview(sheds,
           alpha.regions=0.3) +
   mapview(streams) +
-  mapview(pnts_synoptic, zcol='twi')
+  mapview(pnts_STIC.piezo, zcol='Description', label='AIMS_LocationID')
 m
 
 # export
 #Save map file
-mapshot(m, file.path("docs", "Youngmeyer_STICs.html"))
+mapshot(m, file.path("docs", "Youngmeyer_STICs+Piezo.html"))
 
 
 
