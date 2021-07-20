@@ -199,9 +199,9 @@ sf_manual <-
     tibble(long = c(-96.587193),
            lat = c(39.092281),
            Description = "Supersensor"),
-    tibble(long = c(-96.589459),
-           lat = c(39.088333),
-           Description = "02 outlet: 02M04, upstream of weir"),
+    tibble(long = c(-96.58832556),
+           lat = c(39.09084425),
+           Description = "02 outlet: 02M02, downstream of weir, at StreamCLIMES STICs"),
     tibble(long = -96.578458,
            lat = 39.088683,
            Description = "SFM07, downstream of 20 and 01 junction"),
@@ -211,9 +211,9 @@ sf_manual <-
     tibble(long = -96.581629,
            lat = 39.079941,
            Description = "04 upstream: 04M09"),
-    tibble(long = -96.58342,
-           lat = 39.084258,
-           Description = "04 midstream: 04M06, spring location"),
+    tibble(long = -96.5831,
+           lat = 39.08502,
+           Description = "04 midstream: 04M05, downstream of spring inflow"),
     tibble(long = -96.58366,
            lat = 39.08685,
            Description = "04 downstream: 04M03, upstream of weir, at StreamCLIMES STICs")
@@ -277,7 +277,7 @@ m <-
   mapview(sheds,
           alpha.regions=0.3) +
   mapview(streams) +
-  mapview(pnts_piezo, zcol='twi')
+  mapview(pnts_piezo, zcol='twi', label='Description')
 m
 
 # export
