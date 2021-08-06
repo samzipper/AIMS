@@ -40,8 +40,8 @@ dem_in<-raster(file.path(data_dir,"OkaYanahli", "ned19_n34x50_w096x75_ok_washita
 
 #Create pour point
 pp<-tibble(
-  x = 34.455846,
-  y = -96.664498) %>% 
+  x = 34.45514,
+  y = -96.665796) %>% 
   st_as_sf(., coords = c("y","x"), crs=4326) %>% 
   st_transform(., crs = st_crs(p))
 
@@ -334,8 +334,10 @@ m <-
   mapview(subset(pnts_all, pid %in% STIC_pids), label = "pid")
 
 # points to drop, which can then be placed manually
-STIC_pids <- STIC_pids[STIC_pids != 5700] # shift slightly so on TNC property
-STIC_pids <- STIC_pids[STIC_pids != 1444] # shift slightly so on TNC property
+STIC_pids <- STIC_pids[STIC_pids != 5643] # shift slightly so on TNC property
+STIC_pids <- STIC_pids[STIC_pids != 5040] # shift away from supersensor
+STIC_pids <- STIC_pids[STIC_pids != 3260] # shift downstream away from piezo
+STIC_pids <- STIC_pids[STIC_pids != 10695] # shift downstream away from piezo
 
 # see how many STICs are left and choose some locations to put them
 stics_to_place <- n_stics - length(STIC_pids)
@@ -343,14 +345,20 @@ stics_to_place <- n_stics - length(STIC_pids)
 # manually place points based on filling in gaps in network
 sf_manual <- 
   dplyr::bind_rows(
-    tibble(long = c(-96.665893),
-           lat = c(34.454418),
+    tibble(long = c(-96.665822),
+           lat = c(34.455085),
            Description = "AIMS STIC"),
     tibble(long = -96.673766,
            lat = 34.442414,
            Description = "AIMS STIC"),
-    tibble(long = -96.668758,
-           lat = 34.449520,
+    tibble(long = -96.671617,
+           lat = 34.446301,
+           Description = "AIMS STIC"),
+    tibble(long = -96.668614,
+           lat = 34.450805,
+           Description = "AIMS STIC"),
+    tibble(long = -96.683779,
+           lat = 34.449067,
            Description = "AIMS STIC")
   ) %>% 
   sf::st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
@@ -368,7 +376,7 @@ for (i in 1:dim(sf_manual)[1]){
 
 STIC_pids <- c(STIC_pids, sf_manual$closest_pid)
 
-# add a column to the pnts_all data frame
+# get STIC data
 pnts_streamclimes <- 
   subset(pnts_all, pid %in% current_stics$closest_pid) %>% 
   dplyr::mutate(Description = "StreamCLIMES STIC")
@@ -382,8 +390,8 @@ pnts_STIC <-
 # manually place points based on coordinates from google maps
 sf_manual_piezo <- 
   dplyr::bind_rows(
-    tibble(long = c(-96.665940),
-           lat = c(34.454223),
+    tibble(long = c(-96.665796),
+           lat = c(34.45514),
            Description = "AIMS Piezo"),
     tibble(long = -96.667496,
            lat = 34.451846,
@@ -450,7 +458,7 @@ ggsave(file.path("plots", "OkaYanahli_STICs+Piezos_Map+Dist.png"), p_combined, w
 
 ## mapview format
 m <-
-  mapview(sheds,
+  mapview(sf_boundaries,
           alpha.regions=0.3) +
   mapview(streams) +
   mapview(pnts_sensors, zcol='Description')
