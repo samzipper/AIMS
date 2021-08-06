@@ -1,4 +1,4 @@
-## Youngmeyer_STICsites.R
+## Youngmeyer_STICsites+Piezos.R
 # Modified from Konza_SynopticSites.R
 
 #Load relevant packages
@@ -235,7 +235,6 @@ ggplot(pnts_all, aes(x = con_area_ha, y = twi)) +
 # calculate number of sites per group
 sites_per_group <- n_stics/n_groups_area
 
-
 # loop through groups, figure out number of sites already in that group, and then randomly assign the rest
 no_pts_count <- 0
 set.seed(1)
@@ -449,11 +448,13 @@ p_dist <-
   scale_x_continuous(name = "Drainage Area [ha]") +
   scale_y_continuous(name = "TWI")
 
-(p_map + p_dist) +
+p_combined <- 
+  (p_map + p_dist) +
   plot_layout(ncol = 2, guides = "collect") + 
-  plot_annotation(title = "Distributed based on TWI and drainage area") +
-  ggsave(file.path("plots", "Youngmeyer_PlaceSTICs_Map+Dist.png"),
-         width = 10, height = 4, units = "in")
+  plot_annotation(title = "Distributed based on TWI and drainage area")
+
+ggsave(file.path("plots", "Youngmeyer_PlaceSTICs_Map+Dist.png"), p_combined,
+       width = 10, height = 4, units = "in")
 
 ## mapview format
 m <-

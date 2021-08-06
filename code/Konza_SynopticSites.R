@@ -345,7 +345,7 @@ for (g in rev(levels(pnts_all$area_group))){
     q_need_stics <- levels(pnts_g$quantile_group_twi)
   }
   
-    # if there are multiple existing sites in a single quantile group, there will be fewer available sites 
+  # if there are multiple existing sites in a single quantile group, there will be fewer available sites 
   # then quantile groups to fill. in that case, just randomly choose
   q_get_stics <- sample(q_need_stics, sites_to_place)
   
@@ -464,11 +464,13 @@ p_dist <-
   scale_y_continuous(name = "TWI") +
   scale_color_manual(values = c("STIC" = col.cat.red, "Weir" = col.cat.org, "Spring/Seep" = col.cat.blu, "Random" = "black"))
 
-(p_map + p_dist) +
+p_combined <- 
+  (p_map + p_dist) +
   plot_layout(ncol = 2, guides = "collect") + 
-  plot_annotation(title = "Distributed based on TWI and drainage area") +
-  ggsave(file.path("plots", "Konza_PlaceSTICs_Map+Dist.png"),
-         width = 10, height = 4, units = "in")
+  plot_annotation(title = "Distributed based on TWI and drainage area")
+
+ggsave(file.path("plots", "Konza_PlaceSTICs_Map+Dist.png"), p_combined,
+       width = 10, height = 4, units = "in")
 
 # k-s test and ecdfs for drainage area and twi
 ks_area <- ks.test(pnts_all$con_area_ha, pnts_synoptic$con_area_ha)
