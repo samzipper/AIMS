@@ -1,4 +1,4 @@
-## OkaYanahli_STICsites.R
+## OkaYanahli_STICs+Piezos.R
 # Modified from Konza_SynopticSites.R
 
 #Load relevant packages
@@ -40,8 +40,8 @@ dem_in<-raster(file.path(data_dir,"OkaYanahli", "ned19_n34x50_w096x75_ok_washita
 
 #Create pour point
 pp<-tibble(
-  x = 34.45514,
-  y = -96.665796) %>% 
+  x = 34.436567,
+  y = -96.651804) %>% 
   st_as_sf(., coords = c("y","x"), crs=4326) %>% 
   st_transform(., crs = st_crs(p))
 
@@ -263,7 +263,7 @@ max_area <- max(pnts_all$con_area_ha, na.rm = T)
 n_groups_area <- 10
 
 # manually set upper breaks because there are so few points with large drainage area and large gaps in drainage area distribution
-breaks_area <- c(min_area-0.01, 2.25, 4.44, 8, 10, 13.27, 15, 20, 28, max_area+0.01)
+breaks_area <- c(min_area-0.01, 2.5, 3.5, 5, 10, 15, 20, max_area+0.01)
 
 ggplot() + 
   geom_point(data = pnts_all, aes(x = con_area_ha, y = twi)) + 
@@ -274,7 +274,7 @@ pnts_all$area_group <- cut(pnts_all$con_area_ha, breaks = breaks_area)
 table(pnts_all$area_group)
 
 # since there are a lot of STICs already in the biggest group (streamCLIMES), divvy up the other 20 STICs as follows
-sites_per_group <- c(3, 3, 3, 2, 2, 2, 2, 2, 1)
+sites_per_group <- c(3, 4, 4, 2, 3, 1, 3)
 
 # loop through groups and place STICs
 set.seed(1)
@@ -334,10 +334,12 @@ m <-
   mapview(subset(pnts_all, pid %in% STIC_pids), label = "pid")
 
 # points to drop, which can then be placed manually
-STIC_pids <- STIC_pids[STIC_pids != 5643] # shift slightly so on TNC property
-STIC_pids <- STIC_pids[STIC_pids != 5040] # shift away from supersensor
-STIC_pids <- STIC_pids[STIC_pids != 3260] # shift downstream away from piezo
-STIC_pids <- STIC_pids[STIC_pids != 10695] # shift downstream away from piezo
+STIC_pids <- STIC_pids[STIC_pids != 4689]  # too far downstream - move to trib without a STIC
+STIC_pids <- STIC_pids[STIC_pids != 10899] # in the impoundment - move downstream of reservoir
+STIC_pids <- STIC_pids[STIC_pids != 7920] # in the impoundment - move downstream of reservoir
+STIC_pids <- STIC_pids[STIC_pids != 6814]  # upstream of impoundment - move to headwaters of main channel
+STIC_pids <- STIC_pids[STIC_pids != 7364]  #  upstream of impoundment - move to headwaters of main channel
+STIC_pids <- STIC_pids[STIC_pids != 9869]  #  move closer to junction with main channel
 
 # see how many STICs are left and choose some locations to put them
 stics_to_place <- n_stics - length(STIC_pids)
@@ -345,20 +347,26 @@ stics_to_place <- n_stics - length(STIC_pids)
 # manually place points based on filling in gaps in network
 sf_manual <- 
   dplyr::bind_rows(
-    tibble(long = c(-96.665822),
-           lat = c(34.455085),
+    tibble(long = c(-96.652689),
+           lat = c(34.437897),
            Description = "AIMS STIC"),
-    tibble(long = -96.673766,
-           lat = 34.442414,
+    tibble(long = -96.653378,
+           lat = 34.438502,
            Description = "AIMS STIC"),
-    tibble(long = -96.671617,
-           lat = 34.446301,
+    tibble(long = -96.660574,
+           lat = 34.439720,
            Description = "AIMS STIC"),
-    tibble(long = -96.668614,
-           lat = 34.450805,
+    tibble(long = -96.664491,
+           lat = 34.434548,
            Description = "AIMS STIC"),
-    tibble(long = -96.683779,
-           lat = 34.449067,
+    tibble(long = -96.670698,
+           lat = 34.434451,
+           Description = "AIMS STIC"),
+    tibble(long = -96.659427,
+           lat = 34.439656,
+           Description = "AIMS STIC"),
+    tibble(long = -96.657528,
+           lat = 34.440627,
            Description = "AIMS STIC")
   ) %>% 
   sf::st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
@@ -385,31 +393,35 @@ pnts_STIC <-
   subset(pnts_all, pid %in% STIC_pids) %>% 
   dplyr::mutate(Description = "AIMS STIC")
 
+m <- 
+  mapview(streams) +
+  mapview(bind_rows(pnts_streamclimes, pnts_STIC), zcol = "Description", label = "pid")
+
 ## now, figure out piezometers
 
 # manually place points based on coordinates from google maps
 sf_manual_piezo <- 
   dplyr::bind_rows(
-    tibble(long = c(-96.665796),
-           lat = c(34.45514),
+    tibble(long = c(-96.651891),
+           lat = c(34.436751),
            Description = "AIMS Piezo"),
-    tibble(long = -96.667496,
-           lat = 34.451846,
+    tibble(long = -96.653918,
+           lat = 34.438791,
            Description = "AIMS Piezo"),
-    tibble(long = -96.669569,
-           lat = 34.449199,
+    tibble(long = -96.658687,
+           lat = 34.440204,
            Description = "AIMS Piezo"),
-    tibble(long = -96.670368,
-           lat = 34.449294,
+    tibble(long = -96.660492,
+           lat = 34.439701,
            Description = "AIMS Piezo"),
-    tibble(long = -96.670116,
-           lat = 34.448923,
+    tibble(long = -96.661163,
+           lat = 34.438514,
            Description = "AIMS Piezo"),
-    tibble(long = -96.674687,
-           lat = 34.449649,
+    tibble(long = -96.665261,
+           lat = 34.435628,
            Description = "AIMS Piezo"),
-    tibble(long = -96.684026,
-           lat = 34.448908,
+    tibble(long = -96.665797,
+           lat = 34.435291,
            Description = "AIMS Piezo")
   ) %>% 
   sf::st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
@@ -458,10 +470,8 @@ ggsave(file.path("plots", "OkaYanahli_STICs+Piezos_Map+Dist.png"), p_combined, w
 
 ## mapview format
 m <-
-  mapview(sf_boundaries,
-          alpha.regions=0.3) +
   mapview(streams) +
-  mapview(pnts_sensors, zcol='Description')
+  mapview(pnts_sensors, zcol='Description', label = "pid")
 m
 
 # export
