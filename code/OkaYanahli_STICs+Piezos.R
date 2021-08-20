@@ -390,8 +390,7 @@ pnts_streamclimes <-
   dplyr::mutate(Description = "StreamCLIMES STIC")
 
 pnts_STIC <- 
-  subset(pnts_all, pid %in% STIC_pids) %>% 
-  dplyr::mutate(Description = "AIMS STIC")
+  subset(pnts_all, pid %in% STIC_pids)
 
 m <- 
   mapview(streams) +
@@ -437,8 +436,21 @@ for (i in 1:dim(sf_manual_piezo)[1]){
   sf_manual_piezo$closest_pid_dist[i] <- i_dist[which.min(i_dist)]
 }
 
-pnts_piezo <- subset(pnts_all, pid %in% sf_manual_piezo$closest_pid) %>% 
-  dplyr::mutate(Description = "AIMS Piezo")
+pnts_piezo <- subset(pnts_all, pid %in% sf_manual_piezo$closest_pid)
+
+# swap a STIC and a piezo
+pid_STIC <- 6479
+pid_piezo <- 6170
+  
+pnts_STIC <- bind_rows(pnts_STIC, pnts_piezo[pnts_piezo$pid == pid_piezo, ])
+pnts_piezo <- bind_rows(pnts_piezo, pnts_STIC[pnts_STIC$pid == pid_STIC, ])
+
+pnts_STIC <- subset(pnts_STIC, pid != pid_STIC)
+pnts_piezo <- subset(pnts_piezo, pid != pid_piezo)
+
+# combine all
+pnts_STIC$Description <- "AIMS STIC"
+pnts_piezo$Description <- "AIMS Piezo"
 
 pnts_sensors <-
   bind_rows(pnts_streamclimes, pnts_STIC, pnts_piezo) %>% 
