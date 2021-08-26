@@ -478,7 +478,7 @@ p_combined <-
   plot_layout(ncol = 2, guides = "collect") + 
   plot_annotation(title = "Distributed based on TWI and drainage area")
 
-ggsave(file.path("plots", "OkaYanahli_STICs+Piezos_Map+Dist.png"), p_combined, width = 10, height = 4, units = "in")
+ggsave(file.path("plots", "OkaYanahli_STICs+Piezos_Map+Dist.png"), p_combined, width = 12, height = 4, units = "in")
 
 ## mapview format
 m <-
@@ -489,3 +489,14 @@ m
 # export
 #Save map file
 mapshot(m, file.path("docs", "OkaYanahli_STICs+Piezo.html"))
+
+# write a CSV file of lat/long
+pnts_csv <- 
+  pnts_sensors %>% 
+  st_transform(crs = 4326) %>% 
+  st_coordinates() %>% 
+  as_tibble() %>% 
+  rename(long = X, lat = Y) %>% 
+  mutate(Description = pnts_sensors$Description,
+         pid = pnts_sensors$pid)
+write_csv(pnts_csv, file.path("results", "OkaYanahli_SynopticSites_20210826-Draft.csv"))
