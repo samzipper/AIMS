@@ -499,4 +499,4 @@ pnts_csv <-
   rename(long = X, lat = Y) %>% 
   mutate(Description = pnts_sensors$Description,
          pid = pnts_sensors$pid)
-write_csv(pnts_csv, file.path("results", "OkaYanahli_SynopticSites_20210826-Draft.csv"))
+write_csv(pnts_csv, file.path("results", "OkaYanahli_STICs+Piezos_20210826-Draft.csv"))
