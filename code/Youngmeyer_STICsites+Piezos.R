@@ -159,6 +159,9 @@ st_crs(streams)<-st_crs(dem@crs)
 streams<-streams[sheds,]
 streams$L1 <- seq(1, dim(streams)[1])
 
+# save to repo
+st_write(streams, file.path("results", "Youngmeyer_StreamNetwork.shp"))
+
 #Bring twi, fac, and slope into R env
 twi<-raster(file.path(scratch_dir,"youngmeyer_twi.tif"))
 twi<-crop(twi, sheds)
