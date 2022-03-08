@@ -180,6 +180,9 @@ streams$L1 <- seq(1, nrow(streams))
 streamclimes_watershed <- st_intersects(sf_streamclimes, sheds, sparse = F)[,1]
 sf_streamclimes <- sf_streamclimes[streamclimes_watershed, ]
 
+# save stream network shapefile to repo
+st_write(streams, file.path("results", "OkaYanahli_StreamNetwork.shp"))
+
 #Bring twi, fac, and slope into R env
 twi<-raster(file.path(scratch_dir,"twi.tif"))
 twi<-crop(twi, sheds)
