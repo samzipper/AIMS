@@ -157,6 +157,9 @@ st_crs(streams)<-st_crs(dem@crs)
 streams<-streams[sheds,]
 streams$L1 <- seq(1, dim(streams)[1])
 
+# save stream network shapefile to repo
+st_write(streams, file.path("results", "Konza_StreamNetwork.shp"))
+
 #Bring twi, fac, and slope into R env
 twi<-raster(file.path(scratch_dir,"twi.tif"))
 twi<-crop(twi, sheds)
