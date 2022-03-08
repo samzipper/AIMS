@@ -15,6 +15,34 @@ daily_raw <-
                             parameterCd = pCodes,
                             statCd = "00003") # daily mean
 
+
+### Look at manual measurements
+sw_meas <- readNWISmeas(siteNumbers = USGS_gage)
+sw_meas$discharge_cfs_cut <- cut(sw_meas$discharge_va, c(0, 0.1, 1, 5, 10, 100, 10000), include.lowest = F)
+sw_meas$measured_rating_diff <- factor(sw_meas$measured_rating_diff, levels = c("Poor", "Fair", "Good", "Excellent"))
+
+# explanation for codes: https://help.waterdata.usgs.gov/codes-and-parameters/discharge-measurement-quality-code
+
+# plot
+p_measurements <-
+  sw_meas %>% 
+  subset(!is.na(measured_rating_diff)) %>%
+  subset(discharge_va > 0) %>% 
+  ggplot(aes(x = discharge_cfs_cut, fill = measured_rating_diff)) +
+  geom_bar() +
+  scale_x_discrete(name = "Discharge [cfs], binned") +
+  scale_y_continuous(name = "Number of Measurements") +
+  scale_fill_viridis_d(name = "Measurement Rating") +
+  theme(legend.position = "bottom")
+
+# min "good" measurement is 0.22 cfs
+sw_meas %>% 
+  subset(!is.na(measured_rating_diff)) %>%
+  subset(discharge_va > 0) %>% 
+  subset(measured_rating_diff %in% c("Good", "Excellent")) %>% 
+  arrange(discharge_va) %>% 
+  head()
+
 # subset to water years only
 daily_raw$WaterYear <- year(daily_raw$Date + days(92))
 daily_raw$WYDOY <- yday(daily_raw$Date + days(92))
@@ -25,7 +53,7 @@ daily <-
   subset(WaterYear >= 1980 & WaterYear <= 2021)
 
 # set "low flow is impossible" threshold
-q_thres <- 0.1 # cfs
+q_thres <- 0.22 # cfs
 
 daily$toolow <- daily$discharge_cfs < q_thres
 
@@ -76,9 +104,10 @@ p_hist <-
   scale_y_continuous(name = "# of Water Years", expand = expansion(c(0,0.02)))
 
 p_combo <-
-  (p_ts_days + p_ts + p_hist) +
+  (p_measurements + p_ts_days + p_ts + p_hist) +
   plot_layout(ncol = 1) +
   plot_annotation(title = "USGS 06879650, Kings Creek nr Manhattan")
 
 ggsave(file.path("plots", "Konza_LowDischargeAnalysis.png"),
-       width = 120, height = 180, units = "mm")  
+       width = 120, height = 240, units = "mm")  
+
