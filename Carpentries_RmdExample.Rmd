@@ -1,0 +1,101 @@
+---
+title: "Carpentries Rmd Example"
+output: github_document
+---
+
+# Script purposes and organization
+This is an example Rmd script developed during a Carpentries workshop. In this script, we will develop a workflow and report that does the following tasks:
+ 1. Prepares the R environment
+ 2. Download and save USGS stream stage data
+ 3. Tidy, QAQC, and gap-fill the data and save the processed data
+ 4. Write up some summary statistics.
+
+## 1. Prepare the R environment
+We will load any relevant packages and set the default for our code to appear in our final markdown document.
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+library(dataRetrieval)
+library(dplyr)
+library(zoo)
+library(lubridate)
+library(ggplot2)
+```
+
+## 2. Download and save USGS stream stage data.
+We will use the `readNWISdv` function from the `dataRetrieval` package to download stream stage data for the USGS gage on the Arkansas River near Larned KS. To do this, we will need to provide the 8-digit gage ID number (07141220), the start/end date, and the parameter code for stage (00065; discharge is 00060).
+
+```{r download-data}
+
+# gage ID
+usgs_id <- "07141220"
+
+# download data
+data_raw <- 
+  readNWISdv(siteNumbers = usgs_id,
+             parameterCd = "00065",
+             startDate = "2018-10-01",
+             endDate = "2021-09-30")
+
+# inspect data
+summary(data_raw)
+
+# save data
+write.csv(data_raw, "data/ExampleStreamStage_Raw.csv")
+```
+
+## 3. Tidy, QAQC, and gap-fill the data and save the processed data
+
+In this section, we will perform some basic data cleaning operations to get our data ready for further analysis.
+
+```{r clean-data}
+# create a new data frame with better column names
+data_tidy <-
+  data_raw %>% 
+  rename(stage_ft = X_00065_00003,
+         stage_QAcode = X_00065_00003_cd) %>% 
+  select(-agency_cd, -site_no)
+
+# look at our new data frame
+head(data_tidy)
+
+# first thing to do is always plot!
+ggplot(data_tidy, aes(x = Date, y = stage_ft)) +
+  geom_line()
+
+# check for missing dates by comparing all possible dates to the dates you have
+first_date <- min(data_tidy$Date)
+last_date <- max(data_tidy$Date)
+all_dates <- seq(first_date, last_date, by = "day")  # make vector of all dates
+length(all_dates) == length(data_tidy$Date)  # check for missing dates
+missing_dates <- all_dates[!(all_dates %in% data_tidy$Date)]
+
+# add missing dates to your data frame - we will need to make a new df with the same columns, bind them together, and arrange by date
+new_dates <- data.frame(Date = missing_dates, 
+                        stage_ft = NA,
+                        stage_QAcode = "Gapfill")
+data_clean <- 
+  bind_rows(data_tidy, new_dates) %>% 
+  arrange(Date)
+
+summary(data_clean)
+
+# fill in those gaps using linear interpolation, from the zoo package
+# ?na.approx
+# na.approx(c(1, 2, NA, 4))
+data_clean$stage_ft <- na.approx(data_clean$stage_ft) # can set a maxgap if you want
+
+summary(data_clean)
+
+# plot and inspect
+ggplot(data_clean, aes(x = Date, y = stage_ft, color = stage_QAcode)) +
+  geom_point()
+
+# save data
+write.csv(data_raw, "data/ExampleStreamStage_Clean.csv")
+
+```
+
+## 4. Write up some summary statistics
+
+We analyzed data from USGS gage `r usgs_id`. During the period of record, the maximum stage was `r max(data_clean$stage_ft)` and the minimum stage was `r min(data_clean$stage_ft)`.
