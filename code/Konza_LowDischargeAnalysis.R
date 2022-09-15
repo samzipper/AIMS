@@ -1,11 +1,11 @@
 ## Konza_LowDischargeAnalysis.R
 
-source(file.path("code", "paths+packages.R"))
-
 library(tidyverse)
 library(lubridate)
 library(dataRetrieval)
 library(patchwork)
+
+source(file.path("code", "paths+packages.R"))
 
 ## download data
 pCodes = c("00060") # discharge = 00060, stage = 00065
@@ -79,7 +79,7 @@ annual %>%
   ggplot(aes(x = WaterYear, y = value, color = name)) +
   geom_line()
 
-# plot
+# plots
 p_ts_days <-
   ggplot(annual, aes(x = WaterYear, y = toolow_prc)) +
   geom_line(color = col.cat.blu) +
@@ -103,11 +103,38 @@ p_hist <-
                      labels = scales::percent) +
   scale_y_continuous(name = "# of Water Years", expand = expansion(c(0,0.02)))
 
+
+
+### final plots
+p_measurements <-
+  sw_meas %>% 
+  subset(!is.na(measured_rating_diff)) %>%
+  subset(discharge_va > 0) %>% 
+  ggplot(aes(x = discharge_cfs_cut, fill = measured_rating_diff)) +
+  geom_bar() +
+  scale_x_discrete(name = "Discharge [cfs]", 
+                   labels = c("< 0.1", "0.1 - 1", "1 - 5", "5 - 10", "10 - 100", "> 100")) +
+  scale_y_continuous(name = "Number of\nMeasurements",
+                     expand = expansion(c(0, 0.025))) +
+  scale_fill_viridis_d(name = "Measurement Rating") +
+  theme(legend.position = "bottom")
+
+p_ts_days <-
+  ggplot(annual, aes(x = WaterYear, y = toolow_prc)) +
+  geom_line(color = col.cat.blu) +
+  geom_point(color = col.cat.blu) +
+  scale_y_continuous(name = "Percent of Days with\nDischarge < Lowest\nGood Measurement",
+                     labels = scales::percent, limits = c(0, 1)) +
+  scale_x_continuous(name = "Water Year")
+
 p_combo <-
-  (p_measurements + p_ts_days + p_ts + p_hist) +
+  (p_measurements + p_ts_days) +
   plot_layout(ncol = 1) +
-  plot_annotation(title = "USGS 06879650, Kings Creek nr Manhattan")
+  plot_annotation(title = "USGS 06879650, Kings Creek near Manhattan KS",
+                  tag_levels = "a",
+                  tag_prefix = "(",
+                  tag_suffix = ")")
 
 ggsave(file.path("plots", "Konza_LowDischargeAnalysis.png"),
-       width = 120, height = 240, units = "mm")  
+       width = 190, height = 120, units = "mm")  
 
