@@ -6,7 +6,8 @@ library(tidyverse) #join the cult
 library(ggsn) # for scalebar
 library(patchwork)
 #install.packages("whitebox", lib=file.path("C:/Users", "samzipper", "scratch"), repos="http://R-Forge.R-project.org")
-library(whitebox, lib.loc=file.path("C:/Users", "samzipper", "scratch"))
+#library(whitebox, lib.loc=file.path("C:/Users", "samzipper", "scratch"))
+library(whitebox)
 library(sf)
 library(raster)
 library(stars)
@@ -18,8 +19,8 @@ library(htmlwidgets)
 source(file.path("code", "paths+packages.R"))
 
 #Define data directories
-data_dir<-file.path("C:/Users", "samzipper", "OneDrive - The University of Kansas", "Research", "Kansas", "Konza")
-scratch_dir<-file.path("C:/Users", "samzipper", "scratch")
+data_dir<-file.path("C:/Users", "s947z036", "OneDrive - University of Kansas", "Research", "Kansas", "Konza")
+scratch_dir<-file.path("C:/Users", "s947z036", "scratch")
 output_dir<-file.path(data_dir, "watersheds+twi")
 
 #Load DEM and pour points
@@ -163,12 +164,16 @@ st_write(streams, file.path("results", "Konza_StreamNetwork.shp"))
 #Bring twi, fac, and slope into R env
 twi<-raster(file.path(scratch_dir,"twi.tif"))
 twi<-crop(twi, sheds)
+writeRaster(twi, file.path("results", "Konza_TWI.tif"), overwrite=T) # write
 fac<-raster(file.path(scratch_dir,"fac.tif"))
 fac<-crop(fac, sheds)
+writeRaster(fac, file.path("results", "Konza_FlowAccumulation_cells.tif"), overwrite=T) # write
 slope<-raster(file.path(scratch_dir,"slope.tif"))
 slope<-crop(slope, sheds)
+writeRaster(slope, file.path("results", "Konza_Slope_degrees.tif"), overwrite=T) # write
 dem<-raster(file.path(scratch_dir,"dem_smoothed.tif"))
 dem<-crop(dem, sheds)
+writeRaster(dem, file.path("results", "Konza_DEM_m.tif"), overwrite=T) # write
 dist<-raster(file.path(scratch_dir,"dist.tif"))
 dist<-crop(dist, sheds)
 
