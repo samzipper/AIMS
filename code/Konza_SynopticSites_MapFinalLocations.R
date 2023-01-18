@@ -5,8 +5,9 @@
 #Load relevant packages
 library(tidyverse) #join the cult
 library(patchwork)
-#install.packages("whitebox", lib=file.path("C:/Users", "s947z036", "scratch"), repos="http://R-Forge.R-project.org")
-library(whitebox, lib.loc=file.path("C:/Users", "s947z036", "scratch"))
+#install.packages("whitebox", lib=file.path("C:/Users", "samzipper", "scratch"), repos="http://R-Forge.R-project.org")
+#library(whitebox, lib.loc=file.path("C:/Users", "samzipper", "scratch"))
+library(whitebox)
 library(sf)
 library(raster)
 library(stars)
@@ -25,6 +26,11 @@ output_dir<-file.path(data_dir, "watersheds+twi")
 
 #master crs
 p<-"+proj=utm +zone=14 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"
+
+#Load DEM and pour points
+dem_in<-raster(file.path(data_dir,"terrain", "dem_2m_GIS200", "GIS200.tif"))
+writeRaster(dem_in, file.path(scratch_dir,"dem.tif"), overwrite=T) # write to scratch directory
+dem <- raster(file.path(scratch_dir,"dem.tif"))
 
 #Bring stream polygon into r environment
 streams<-st_read(file.path("results", "Konza_StreamNetwork.shp"))
@@ -48,13 +54,6 @@ m
 mapshot(m, file.path("docs", "Konza_AllSTICs.html"))
 
 ### get information about drainage area, etc.
-#Load DEM and pour points
-dem_in<-raster(file.path(data_dir,"terrain", "dem_2m_GIS200", "GIS200.tif"))
-writeRaster(dem_in, file.path(scratch_dir,"dem.tif"), overwrite=T) # write to scratch directory
-dem <- raster(file.path(scratch_dir,"dem.tif"))
-
-#master crs
-p<-"+proj=utm +zone=14 +ellps=GRS80 +datum=NAD83 +units=m +no_defs"
 
 #Create pour point
 pp<-tibble(
@@ -256,3 +255,53 @@ pnts_stic %>%
   st_drop_geometry() %>% 
   dplyr::select(-closest_pid, -closest_pid_dist) %>% 
   write_csv(file.path(stic_dir, "Konza_AllSTICsWithDetails.csv"))
+
+## make maps and plots for sampling locations (only _1 stics)
+# all points
+pnts_all <-
+  pnts %>% 
+  subset(con_area_ha < max(pnts_stic$ContributingArea_ha)+0.1)
+
+pnts_stic$high_stic <- str_detect(pnts_stic$STIC_name, "_1")
+pnts_sample <- subset(pnts_stic, high_stic)
+
+# plot: all points and sampling points
+p_twi_area <-
+  ggplot() +
+  geom_point(data = pnts_all, aes(x = con_area_ha, y = twi), shape = 1, alpha = 0.5) +
+  geom_point(data = pnts_sample, aes(x = ContributingArea_ha, y = TWI), color = col.cat.blu) +
+  scale_x_continuous(name = "Drainage Area [ha]") +
+  scale_y_continuous(name = "TWI")
+ggsave(file.path("plots", "Konza_SynopticSites_TWIvArea.png"),
+       p_twi_area, width = 95, height = 95, units = "mm")
+
+# k-s test and ecdfs for drainage area and twi
+ks_area <- ks.test(pnts_all$con_area_ha, pnts_sample$ContributingArea_ha)
+p_ecfd_area <-
+  ggplot() + 
+  stat_ecdf(data = pnts_all, aes(x = con_area_ha), geom = "step", color = "black") + 
+  stat_ecdf(data = pnts_sample, aes(x = ContributingArea_ha), geom = "step", color = col.cat.blu) +
+  scale_x_continuous(name = "Drainage Area [ha]") +
+  scale_y_continuous(name = "Cumulative Proportion")
+
+ks_twi <- ks.test(pnts_all$twi, pnts_sample$TWI)
+p_ecfd_twi <-
+  ggplot() + 
+  stat_ecdf(data = pnts_all, aes(x = twi), geom = "step", color = "black") + 
+  stat_ecdf(data = pnts_sample, aes(x = TWI), geom = "step", color = col.cat.blu) +
+  scale_x_continuous(name = "TWI [-]") +
+  scale_y_continuous(name = "Cumulative Proportion")
+
+p_ecdfs <- 
+  (p_ecfd_area + p_ecfd_twi) +
+  plot_layout(ncol = 2)
+
+ggsave(file.path("plots", "Konza_SynopticSites_ECDFs.png"),
+       p_ecdfs, width = 190, height = 95, units = "mm")
+
+# maps
+ggplot() +
+  #geom_sf(data = sheds, color = col.cat.yel, fill = "NA") +
+  geom_sf(data = streams, color = col.gray) +
+  #geom_sf(data = sf_springs, aes(shape = factor(SpringSeepClass))) +
+  geom_sf(data = pnts_sample)

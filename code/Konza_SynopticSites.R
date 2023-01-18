@@ -199,7 +199,7 @@ sf_springs <- read_csv(file.path("data", "SFKC_SeepsSprings.csv")) %>%
   sf::st_transform(crs = p) %>% 
   dplyr::mutate(Description = "Spring/Seep")
 
-# choose a subset of springs as set points - going with 5 for now
+# choose a subset of springs as set points - going with 7 for now
 i_springs <- c(1, 3, 5, 6, 8, 11, 15)
 ggplot() +
   geom_sf(data=streams) +
@@ -208,6 +208,12 @@ ggplot() +
 
 # compile set sites
 set_sites <- dplyr::bind_rows(current_stics, key_sites, sf_springs[i_springs, c("geometry", "Description", "Name")])
+
+ggplot() +
+  geom_sf(data=streams) +
+  geom_sf(data=current_stics, color = "blue") +
+  geom_sf(data=key_sites, color = "green") +
+  geom_sf(data=sf_springs[i_springs,], color = "red")
 
 n_stics_current <- dim(set_sites)[1]
 
@@ -225,7 +231,7 @@ pnts<-
   dplyr::rename(StreamReach = FID) %>% 
   mutate(
     twi = extract(twi, .), 
-    con_area_ha = extract(fac, .)/10000,
+    con_area_ha = extract(fac, .)*res(fac)[1]*res(fac)[2]/10000,
     elevation_m = extract(dem, .),
     slope = extract(slope, .), 
     dist = extract(dist, .),
@@ -300,7 +306,7 @@ max_area <- max(pnts_all$con_area_ha)
 n_groups_area <- 10
 
 # manually set upper breaks because there are so few points with large drainage area
-breaks_area <- c(seq(min_area-0.01, 32, length.out = n_groups_area - 1), 55, max_area + 1)
+breaks_area <- c(seq(min_area-0.01, 128, length.out = n_groups_area - 1), 220, max_area + 1)
 
 pnts_all$area_group <- cut(pnts_all$con_area_ha, breaks = breaks_area)
 table(pnts_all$area_group)
@@ -309,9 +315,10 @@ ggplot(pnts_all, aes(x = con_area_ha, y = twi)) +
   geom_point() + 
   geom_vline(xintercept = breaks_area, color = "red") +
   scale_x_continuous(name = "Drainage Area [ha]") +
-  scale_y_continuous(name = "TWI") +
-  ggsave(file.path("plots", "Konza_SynopticSites_AreaGroups.png"),
-         width = 8, height = 8, units = "in")
+  scale_y_continuous(name = "TWI")
+
+ggsave(file.path("plots", "Konza_SynopticSites_AreaGroups.png"),
+         width = 95, height = 95, units = "mm")
 
 # calculate number of sites per group
 sites_per_group <- n_stics/n_groups_area
