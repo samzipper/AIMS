@@ -165,6 +165,7 @@ streams$L1 <- seq(1, dim(streams)[1])
 
 # save to repo
 st_write(streams, file.path("results", "konzaShane_StreamNetwork.shp"), append = F)
+st_write(sheds, file.path("results", "konzaShane_Watershed.shp"), append = F)
 
 #Bring twi, fac, and slope into R env
 twi<-raster(file.path(scratch_dir,"konza_twi.tif"))
