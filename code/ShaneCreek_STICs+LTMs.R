@@ -357,13 +357,11 @@ ggplot() +
   geom_sf_text(data = pnts_STIC, aes(label = pid))
 
 # PIDs to cut
-pids_cut <- c(22365, 13841, 16082, 8639, 13038, 20600, 15575)
+pids_cut <- c(22365, 13841, 16082, 8639, 13038, 20600, 15575, 23142)
 
 # update test map
 ggplot() +
-  #geom_sf(data = sheds, color = col.cat.yel, fill = "NA") +
   geom_sf(data = streams, color = col.gray) +
-  #geom_sf(data = sf_springs, aes(shape = factor(SpringSeepClass))) +
   geom_sf(data = subset(pnts_STIC, !(pid %in% pids_cut)), aes(color = Description)) +
   geom_sf_text(data = subset(pnts_STIC, !(pid %in% pids_cut)), aes(label = pid))
 
@@ -378,6 +376,9 @@ sf_manual <-
            Description = "STIC"),
     tibble(long = c(-96.55278141849116),
            lat = c(39.11012819944679),
+           Description = "STIC"),
+    tibble(long = c(-96.55676561617796),
+           lat = c(39.115106800779294),
            Description = "STIC")
   ) %>% 
   sf::st_as_sf(coords = c("long", "lat"), crs = 4326) %>% 
@@ -403,18 +404,70 @@ pnts_STIC_refined <-
   subset(pnts_STIC, (!pid %in% pids_cut)) |> 
   bind_rows(pnts_manual)
 
+# plot again with PIDs for naming purposes
+ggplot() +
+  geom_sf(data = streams, color = col.gray) +
+  geom_sf(data = pnts_STIC_refined, aes(color = Description)) +
+  geom_sf_text(data = pnts_STIC_refined, aes(label = pid))
+
+# determine site name - by manually looking at PIDs and comparing to google earth map
+df_shedname <- 
+  tribble(
+    ~pid,      ~AIMS_LocationID,
+    6069, "SHM01",
+    23903, "SHM02",
+    5393, "SHM03",
+    4980, "SHM04",
+    20009, "SHC01",
+    23579, "SHC02",
+    22274, "SHC03",
+    21417, "SHC04",
+    18689, "SHC05",
+    16734, "SHA01",
+    16485, "SHA02",
+    15841, "SHA03",
+    14929, "SHA04",
+    4681, "SHB01",
+    3971, "SHB02",
+    3248, "SHB03",
+    2447, "SHB04",
+    1819, "SHB05",
+    846, "SHB06",
+    536, "SHB07",
+    134, "SHB08",
+    12274, "SHB09",
+    11364, "SHB10",
+    10313, "SHB11",
+    9560, "SHB12",
+    9019, "SHB13",
+    7708, "SHB14"
+  )
+
+pnts_coords <- 
+  pnts_STIC_refined |> 
+  st_transform(crs = 4326) |> 
+  st_coordinates() 
+
+pnts_STIC_refined$lat <- pnts_coords[,"Y"]
+pnts_STIC_refined$long <- pnts_coords[,"X"]
+
+pnts_final <-
+  pnts_STIC_refined |> 
+  left_join(df_shedname, by = "pid") |> 
+  dplyr::select(AIMS_LocationID, Description, long, lat, twi, con_area_ha, elevation_m, slope)
+
 # final plots
 p_map <-
   ggplot() +
   #geom_sf(data = sheds, color = col.cat.yel, fill = "NA") +
   geom_sf(data = streams, color = col.gray) +
   #geom_sf(data = sf_springs, aes(shape = factor(SpringSeepClass))) +
-  geom_sf(data = pnts_STIC_refined, aes(color = Description))
+  geom_sf(data = pnts_final, aes(color = Description))
 
 p_dist <-
   ggplot() +
   geom_point(data = pnts_all, aes(x = con_area_ha, y = twi), shape = 1, color = col.gray) +
-  geom_point(data = pnts_STIC_refined, aes(x = con_area_ha, y = twi, color = Description)) +
+  geom_point(data = pnts_final, aes(x = con_area_ha, y = twi, color = Description)) +
   scale_x_continuous(name = "Drainage Area [ha]") +
   scale_y_continuous(name = "TWI")
 
@@ -431,9 +484,15 @@ m <-
   mapview(sheds,
           alpha.regions=0.3) +
   mapview(streams) +
-  mapview(pnts_STIC_refined, zcol='Description', label='pid')
+  mapview(pnts_final, zcol='Description', label='AIMS_LocationID')
 m
 
 # export
 #Save map file
 mapshot(m, file.path("docs", "konzaShane_STICs+LTMs.html"))
+
+# save as CSV
+pnts_final |> 
+  st_drop_geometry() |> 
+  arrange(AIMS_LocationID) |> 
+  write_csv(file.path("results", "konzaShane_STICs+LTMs_Targets.csv"))
