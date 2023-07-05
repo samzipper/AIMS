@@ -6,7 +6,8 @@
 library(tidyverse) #join the cult
 library(patchwork)
 #install.packages("whitebox", lib=file.path("C:/Users", "samzipper", "scratch"), repos="http://R-Forge.R-project.org")
-library(whitebox, lib.loc=file.path("C:/Users", "samzipper", "scratch"))
+#library(whitebox, lib.loc=file.path("C:/Users", "samzipper", "scratch"))
+library(whitebox)
 library(sf)
 library(raster)
 library(stars)
@@ -18,8 +19,8 @@ library(htmlwidgets)
 source(file.path("code", "paths+packages.R"))
 
 #Define data directories
-data_dir<-file.path("C:/Users", "samzipper", "OneDrive - The University of Kansas", "Research", "Kansas", "Konza")
-scratch_dir<-file.path("C:/Users", "samzipper", "scratch")
+data_dir<-file.path("C:/Users", "s947z036", "OneDrive - University of Kansas", "Research", "Kansas", "Konza")
+scratch_dir<-file.path("C:/Users", "s947z036", "scratch")
 output_dir<-file.path(data_dir, "watersheds+twi")
 
 #Load DEM and pour points
@@ -197,7 +198,7 @@ pnts<-
   dplyr::rename(StreamReach = FID) %>% 
   mutate(
     twi = extract(twi, .), 
-    con_area_ha = extract(fac, .)/10000,
+    con_area_ha = extract(fac, .)*res(fac)[1]*res(fac)[2]/10000,
     elevation_m = extract(dem, .),
     slope = extract(slope, .), 
     dist = extract(dist, .),
