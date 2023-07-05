@@ -2,6 +2,7 @@
 # a place to keep variables, functions, etc. relevant across numerous scripts
 
 # load packages
+library(tidyverse)
 options(dplyr.summarise.inform=F)   # suppress summarize info
 ncores <- (parallel::detectCores() - 1)  # number of cores to use for any parallel stuff
 
