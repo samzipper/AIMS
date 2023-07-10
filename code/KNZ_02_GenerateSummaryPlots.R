@@ -81,3 +81,56 @@ p_STICdata <-
   theme(legend.position = "bottom")
 ggsave(file.path(path_data, "KNZ_AllSTICsCleaned_SummaryPlots.png"),
        p_STICdata, width = 190, height = 190, units = "mm")  
+
+## compare to field measurements
+df_field <- read_csv("G:/.shortcut-targets-by-id/1KSx3E1INg4hQNlHWYnygPi41k_ku66fz/Track 2 AIMS/Data [working files]/Core datasets (as defined by implementation plan)/Approach 1_sensors and STICs/GP_STIC_metadata/KNZ_STIC_metadata/KNZ_STIC_QAQC_metadata/KNZ_STIC_QAQC_metadata.csv") |> 
+  subset(wet_dry %in% c("wet", "dry")) # remove NAs and ice
+
+# join based on nearest timestamp
+df_field$STICreading <- NA
+df_field$timediff_min <- NA
+for (i in 1:length(df_field$wet_dry)){
+  # grab site and timestamp
+  s <- df_field$Location[i]
+  t <- df_field$datetime[i] |> 
+    mdy_hm(tz = "America/Chicago") |> 
+    with_tz(tzone = "UTC")
+  
+  # get observation and time difference
+  df_s <- subset(df, siteID == s)
+  j_closest <- which.min(abs(df_s$datetime - t))
+  t_diff <- as.numeric(difftime(t, df_s$datetime[j_closest], units = "mins"))
+  
+  # add observation
+  if (length(t_diff) > 0){
+    df_field$STICreading[i] <- df_s$wetdry[j_closest]
+    df_field$timediff_min[i] <- t_diff
+  }
+  
+}
+
+# comparison - get rid of NAs and timediff > 30 min
+df_compare <- 
+  df_field |> 
+  subset(is.finite(timediff_min) & abs(timediff_min) < 30)
+
+# make confusion matrix
+df_confusion <-
+  df_compare |> 
+  group_by(wet_dry, STICreading) |> 
+  summarize(count = n())
+
+accuracy <- 
+  (df_confusion$count[df_confusion$wet_dry=="wet" & df_confusion$STICreading=="wet"] +
+  df_confusion$count[df_confusion$wet_dry=="dry" & df_confusion$STICreading=="dry"])/sum(df_confusion$count)
+
+p_accuracy <- 
+  ggplot(df_confusion, aes(x = wet_dry, y = STICreading)) +
+  geom_tile(aes(fill = count)) +
+  geom_text(aes(label = count), color = "white") +
+  scale_x_discrete(name = "Observed", expand = c(0,0)) +
+  scale_y_discrete(name = "Classified", expand = c(0,0)) +
+  scale_fill_viridis_c(name = "# of Observations") +
+  labs(title = "KNZ STIC accuracy assessment", subtitle = paste0("Overall accuracy = ", round(100*accuracy, 1), "%"))
+ggsave(file.path(path_data, "KNZ_AllSTICsCleaned_AccuracyPlot.png"),
+       p_accuracy, width = 120, height = 95, units = "mm")  
