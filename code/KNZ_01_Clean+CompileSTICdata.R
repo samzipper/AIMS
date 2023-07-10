@@ -1,4 +1,4 @@
-## Konza_InvestigateSTICdata.R
+## KNZ_01_Clean+CompileSTICdata.R
 
 source(file.path("code", "paths+packages.R"))
 

@@ -1,4 +1,4 @@
-## Konza_GenerateSummaryPlots.R
+## KNZ_02_GenerateSummaryPlots.R
 
 source(file.path("code", "paths+packages.R"))
 library(patchwork)
