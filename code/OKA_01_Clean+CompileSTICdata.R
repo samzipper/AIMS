@@ -28,7 +28,7 @@ df_all |>
   ggplot(aes(x = datetime, y = n_stic)) + geom_line()
 
 ## step 1: get rid of any NA classifications (these are associated with non-data logs in the record)
-df_trimmed <- subset(df_all, !is.na(wetdry))
+df_trimmed <- subset(df_all, !is.na(wetdry) & datetime >= ymd("2022-02-15"))
 
 ## step 2: find any datetime/site with more than one STIC reading - 
 #  these can then be manually adjusted and the above code can be rerun to re-generate df_trimmed
@@ -56,15 +56,6 @@ ggplot(df_stats, aes(x = datetime, y = prc_wet)) + geom_line()
 ggplot(df_stats, aes(x = datetime, y = prc_exc)) + geom_line()
 
 ## step 5: save output by year
-# 2021
-df_trimmed |> 
-  subset(year(datetime) == 2021) |> 
-  mutate(condUncal = round(condUncal, 1),
-         tempC = round(tempC, 2),
-         SpC = round(SpC, 2),
-         QAQC = replace_na(QAQC, "")) |> 
-  write_csv(file.path(path_data, "..", paste0("YMR_AllSTICsCleaned_", str_replace_all(min(date(df_trimmed$datetime)), "-", ""), "-20211231.csv")))
-
 # 2022
 df_trimmed |> 
   subset(year(datetime) == 2022) |> 
@@ -72,4 +63,4 @@ df_trimmed |>
          tempC = round(tempC, 2),
          SpC = round(SpC, 2),
          QAQC = replace_na(QAQC, "")) |> 
-  write_csv(file.path(path_data, "..", paste0("YMR_AllSTICsCleaned_20220101-20221231.csv")))
+  write_csv(file.path(path_data, "..", paste0("OKA_AllSTICsCleaned_20220215-20221025.csv")))
