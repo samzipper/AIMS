@@ -11,7 +11,7 @@ data_files <- list.files(path_data, pattern = ".csv")
 # load all files
 for (i in 1:length(data_files)){
   df_f <- read_csv(file.path(path_data, data_files[i])) |> 
-    dplyr::select(datetime, siteID, SN, sublocation, condUncal, tempC, SpC, wetdry, qual_rating, QAQC)
+    dplyr::select(datetime, siteID, SN, condUncal, tempC, SpC, wetdry, qual_rating, QAQC)
   
   if (i == 1){
     df_all <- df_f
