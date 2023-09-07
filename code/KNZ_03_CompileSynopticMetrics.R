@@ -22,7 +22,6 @@ window_lengths <- c(7, 14, 21)
 
 start <- T
 for (m in months_all){
-  
   # join for that month
   df_m <- left_join(df, subset(df_dates, month == m), by = "site")
   
@@ -32,6 +31,7 @@ for (m in months_all){
     sdate <- ymd(unique(df_ms$date))
     
     for (t in window_lengths){
+      
       # pull data for just that length
       df_mst <- subset(df_ms, 
                        (datetime >= sdate - days(t)) & 
