@@ -49,7 +49,7 @@ for (d in data_files){
 # load manual stage measurements - exported from 
 # https://docs.google.com/spreadsheets/d/1DkF2Ugr6tEgnZHOGJ_UY2kW9JWH4ce8xbyzSyyA6-CI/edit#gid=677133672 
 df_manual <- read_csv(file.path("data", "SFM01_ManualStage.csv")) |> 
-  mutate(Datetime = mdy_hms(Datetime))
+  mutate(timestamp = mdy_hms(Datetime))
 
 # make plotly
 fig <- 
@@ -59,48 +59,15 @@ fig <-
           name = 'Stream Stage [m]', 
           type = 'scatter', 
           mode = 'lines') |> 
+  add_markers(data = df_manual, x = ~timestamp, y = ~StageManual_m, 
+              name = 'Manual Stage', mode = 'markers') |> 
   layout(
     title = "Surface water level",
     xaxis = list(rangeslider = list(type = "date")),
-    yaxis = list(title = "Stage [ft]")
+    yaxis = list(title = "Stage [m]")
     )
 fig
 
-
-
-
-
-
-# make dygraph function
-dygraph_ts_fun<-function(df, title, y_label = "Stage [ft]"){
-  
-  #format data
-  df_xts<-df #%>% na.omit() 
-  df_xts<-xts(df_xts, order.by=df_xts$timestamp)
-  df_xts<-df_xts[,-1]
-  
-  #Plot
-  dygraph(df_xts,
-          main = title) %>%
-    dyRangeSelector() %>%
-    dyLegend() %>%
-    dyOptions(strokeWidth = 1.5) %>%
-    dyOptions(labelsUTC = TRUE) %>%
-    dyHighlight(highlightCircleSize = 5,
-                highlightSeriesBackgroundAlpha = 0.2,
-                hideOnMouseOut = FALSE) %>%
-    dyAxis("y", label = y_label)
-}
-
-# plot dygraph
-df_all |> 
-  dplyr::select(timestamp, SW_Level_ft) |>  # select timestamp + any variables you want to plot
-  dygraph_ts_fun(title = "KNZ SFM01", y_label = "Stage [ft]")
-
 # push to web
-m <- df_all |> 
-  dplyr::select(timestamp, SW_Level_ft) |>  # select timestamp + any variables you want to plot
-  dygraph_ts_fun(title = "KNZ SFM01", y_label = "Stage [ft]")
-
-htmlwidgets::saveWidget(m, 'docs//KNZ_SFM01_StageDygraph.html')
-# see at: https://samzipper.github.io/AIMS/docs/KNZ_SFM01_StageDygraph.html
+htmlwidgets::saveWidget(fig, 'docs//KNZ_SFM01_StagePlotly.html')
+# see at: https://samzipper.github.io/AIMS/docs/KNZ_SFM01_StagePlotly.html
