@@ -1,4 +1,4 @@
-## KNZ_SFM01_StageDygraph.R
+## SHN_StageDygraph.R
 # Goal: Make a dygraph with the following things plotted:
 #   - stage through time (SW and GW PT)
 #   - manual stage measurements (from staff gage)
@@ -15,7 +15,7 @@ library(dataRetrieval)
 library(htmlwidgets)
 
 ## path to stage data - from repo AIMS-Project/EXO_QAQC
-path_data <- file.path("..", "EXO_QAQC", "01_data", "04_postQaqc", "KMZ")
+path_data <- file.path("..", "EXO_QAQC", "01_data", "04_postQaqc", "SHN")
 
 ## load and combine data
 # get list of all CSV files
@@ -26,10 +26,10 @@ for (d in data_files){
   df_d <- read_csv(file.path(path_data, d))
   
   # deal with inconsistent date string
-  if (d %in% c("KMZ_2023-05_QAQCed.csv", "KMZ_2023-06_QAQCed.csv", "KMZ_2023-07_QAQCed.csv", "KMZ_2023-08_QAQCed.csv")){
-    # for 2023-05 and 2023-06, conductivity timestamp is in different format than rest of parametesr
-    df_d$timestamp <- ymd_hms(df_d$timestamp)
-  }
+  #if (d %in% c("KMZ_2023-05_QAQCed.csv", "KMZ_2023-06_QAQCed.csv", "KMZ_2023-07_QAQCed.csv", "KMZ_2023-08_QAQCed.csv")){
+  #  # for 2023-05 and 2023-06, conductivity timestamp is in different format than rest of parametesr
+  #  df_d$timestamp <- ymd_hms(df_d$timestamp)
+  #}
   
   df_d_wide <- 
     df_d |> 
@@ -74,12 +74,12 @@ dygraph_ts_fun<-function(df, title, y_label = "Stage [ft]"){
 # plot dygraph
 df_all |> 
   dplyr::select(timestamp, SW_Level_ft) |>  # select timestamp + any variables you want to plot
-  dygraph_ts_fun(title = "KNZ SFM01", y_label = "Stage [ft]")
+  dygraph_ts_fun(title = "SHN", y_label = "Stage [ft]")
 
 # push to web
 m <- df_all |> 
   dplyr::select(timestamp, SW_Level_ft) |>  # select timestamp + any variables you want to plot
-  dygraph_ts_fun(title = "KNZ SFM01", y_label = "Stage [ft]")
+  dygraph_ts_fun(title = "SHN", y_label = "Stage [ft]")
 
-htmlwidgets::saveWidget(m, 'docs//KNZ_SFM01_StageDygraph.html')
-# see at: https://samzipper.github.io/AIMS/docs/KNZ_SFM01_StageDygraph.html
+htmlwidgets::saveWidget(m, 'docs//SHN_StageDygraph.html')
+# see at: https://samzipper.github.io/AIMS/docs/SHN_StageDygraph.html
