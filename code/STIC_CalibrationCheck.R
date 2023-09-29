@@ -62,3 +62,6 @@ for (s in sn_all){
 
 # write fit stats
 write_csv(df_fit_out, file.path(path_cal_results, "CalibrationFitStats.csv"))
+
+# identify SNs with r2 < 0.9
+subset(df_fit_out, r2 < 0.9)
