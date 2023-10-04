@@ -5,8 +5,8 @@
 library(tidyverse) #join the cult
 library(ggsn) # for scalebar
 library(patchwork)
-#install.packages("whitebox", lib=file.path("C:/Users", "samzipper", "scratch"), repos="http://R-Forge.R-project.org")
-library(whitebox, lib.loc=file.path("C:/Users", "samzipper", "scratch"))
+#install.packages("whitebox", lib=file.path("C:/Users", "s947z036", "scratch"), repos="http://R-Forge.R-project.org")
+library(whitebox, lib.loc=file.path("C:/Users", "s947z036", "scratch"))
 library(sf)
 library(raster)
 library(stars)
@@ -18,8 +18,8 @@ library(htmlwidgets)
 source(file.path("code", "paths+packages.R"))
 
 #Define data directories
-data_dir<-file.path("C:/Users", "samzipper", "OneDrive - The University of Kansas", "Research", "AIMS-IntermittentStreams")
-scratch_dir<-file.path("C:/Users", "samzipper", "scratch")
+data_dir<-file.path("C:/Users", "s947z036", "OneDrive - University of Kansas", "Research", "AIMS-IntermittentStreams")
+scratch_dir<-file.path("C:/Users", "s947z036", "scratch")
 output_dir<-file.path(data_dir, "watersheds+twi")
 
 #master crs
@@ -52,8 +52,8 @@ dem_mask <- raster::mask(dem_crop, st_transform(pp_buffer, crs(dem_in))) %>%
   projectRaster(crs=p)
 writeRaster(dem_mask, file.path(scratch_dir,"dem.tif"), overwrite=T) # write to scratch directory
 
-dem <- 
-  raster(file.path(scratch_dir,"dem.tif"))
+dem <- raster(file.path(scratch_dir,"dem.tif"))
+
 
 # area threshold for drainage
 threshold <- 15000
@@ -181,17 +181,22 @@ streamclimes_watershed <- st_intersects(sf_streamclimes, sheds, sparse = F)[,1]
 sf_streamclimes <- sf_streamclimes[streamclimes_watershed, ]
 
 # save stream network shapefile to repo
-st_write(streams, file.path("results", "OkaYanahli_StreamNetwork.shp"))
+st_write(streams, file.path("results", "OkaYanahli_StreamNetwork.shp"), append = F)
+st_write(sheds, file.path("results", "OkaYanahli_Watershed.shp"), append = F)
 
 #Bring twi, fac, and slope into R env
 twi<-raster(file.path(scratch_dir,"twi.tif"))
 twi<-crop(twi, sheds)
+writeRaster(twi, file.path("results", "Oka_TWI.tif"), overwrite=T) # write
 fac<-raster(file.path(scratch_dir,"fac.tif"))
 fac<-crop(fac, sheds)
+writeRaster(fac, file.path("results", "Oka_FlowAccumulation_cells.tif"), overwrite=T) # write
 slope<-raster(file.path(scratch_dir,"slope.tif"))
 slope<-crop(slope, sheds)
+writeRaster(slope, file.path("results", "Oka_Slope_degrees.tif"), overwrite=T) # write
 dem<-raster(file.path(scratch_dir,"dem_smoothed.tif"))
 dem<-crop(dem, sheds)
+writeRaster(dem, file.path("results", "Oka_DEM.tif"), overwrite=T) # write
 dist<-raster(file.path(scratch_dir,"dist.tif"))
 dist<-crop(dist, sheds)
 
