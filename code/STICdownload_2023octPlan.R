@@ -6,6 +6,7 @@ library(stars)
 library(mapview) # needs to be dev version:    remotes::install_github("r-spatial/mapview")
 mapviewOptions(fgb = FALSE)  # for pandoc export issue
 library(htmlwidgets)
+source(file.path("code", "paths+packages.R"))
 
 ## load file of locations
 sf_stic <- 
@@ -19,10 +20,10 @@ sf_shn_streams <- st_read(file.path("results", "konzaShane_StreamNetwork.shp"))
 m <-
   mapview(sf_knz_streams) +
   mapview(sf_shn_streams) +
-  mapview(sf_stic, zcol='CollectTeam', label = 'siteID')
+  mapview(sf_stic, zcol='CollectTeam', label = 'siteID', col.regions = list(col.cat.red, col.cat.blu, col.cat.org, col.cat.grn))
 m
 
 # export
 #Save map file
 
-mapshot(m, file.path("docs", "Konza_Synoptic.html"))
+mapshot(m, file.path("docs", "STICdownload_2023octPlan.html"))
