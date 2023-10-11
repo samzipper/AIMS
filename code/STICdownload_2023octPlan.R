@@ -27,3 +27,5 @@ m
 #Save map file
 
 mapshot(m, file.path("docs", "STICdownload_2023octPlan.html"))
+
+st_write(sf_stic, "G:/.shortcut-targets-by-id/1KSx3E1INg4hQNlHWYnygPi41k_ku66fz/Track 2 AIMS/QA QCed Data/GP_STIC_QAQC/GP_STIC_locations/KNZ+SHN_CurrentSTICs2023Oct.kml", driver = "kml", delete_dsn = TRUE)
