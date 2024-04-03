@@ -35,3 +35,24 @@ df_siteID <-
 
 # save output
 write_csv(df_siteID, file.path("results", "KNZ_Avg2021-2022STICstatsNoPoor.csv"))
+
+
+# summarize by siteID - first year of data only
+df_siteID_1yr <-
+  df |> 
+  subset(datetime <= df$datetime[1] + years(1)) |> 
+  group_by(siteID) |> 
+  summarize(n_wet = sum(wetdry == "wet"),
+            n_total = n(),
+            prc_missing = (n_ts - n_total)/n_ts,
+            prc_wet = n_wet/n_total,
+            tempC_mean = mean(tempC))
+
+# save output
+write_csv(df_siteID_1yr, file.path("results", "KNZ_FirstYearSTICstatsNoPoor.csv"))
+
+# compare
+left_join(df_siteID_1yr, df_siteID, by = "siteID", suffix = c("_1yr", "_all")) |> 
+  ggplot(aes(x = prc_wet_1yr, y = prc_wet_all)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1)
