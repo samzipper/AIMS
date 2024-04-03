@@ -78,7 +78,7 @@ df_long <-
   pivot_longer(-Date)
 
 # save output
-write_csv(df_all, file.path("Konza_Discharge_USGS+Weirs.csv"))
+write_csv(df_all, file.path("data", "Konza_Discharge_USGS+Weirs.csv"))
 
 ggplot(df_long, aes(x = Date, y = value, color = name)) +
   geom_line() +
