@@ -5,9 +5,9 @@
 library(tidyverse) #join the cult
 library(ggsn) # for scalebar
 library(patchwork)
-#install.packages("whitebox", lib=file.path("C:/Users", "samzipper", "scratch"), repos="http://R-Forge.R-project.org")
-#library(whitebox, lib.loc=file.path("C:/Users", "samzipper", "scratch"))
-library(whitebox)
+#install.packages("whitebox", lib=file.path("C:/Users", "s947z036", "scratch"), repos="http://R-Forge.R-project.org")
+library(whitebox, lib.loc=file.path("C:/Users", "s947z036", "scratch"))
+#library(whitebox)
 library(sf)
 library(raster)
 library(stars)
@@ -136,6 +136,7 @@ sheds<-raster(file.path(scratch_dir,"sheds.tif"))
 
 #Convert raster to vector
 sheds<- sheds %>% st_as_stars() %>% st_as_sf(., merge = TRUE)
+st_write(sheds, file.path("results", "Konza_Watershed.shp"), append = F)
 
 #Add pp ID
 name <- "Konza"

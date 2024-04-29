@@ -138,6 +138,7 @@ sheds<-raster(file.path(scratch_dir,"youngmeyer_sheds.tif"))
 
 #Convert raster to vector
 sheds<- sheds %>% st_as_stars() %>% st_as_sf(., merge = TRUE)
+st_write(sheds, file.path("results", "Youngmeyer_Watershed.shp"), append = F)
 
 #Add pp ID
 name <- "Youngmeyer"
