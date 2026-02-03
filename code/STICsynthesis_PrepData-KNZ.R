@@ -50,6 +50,8 @@ df_04M03_2024_trim <- subset(df_all_raw_trim, siteId == "01M03" & year(datetime)
 # produce columns that will be needed
 df_all_raw_trim$sensor_name <- paste0(df_all_raw_trim$siteId, "-", df_all_raw_trim$sublocation)
 df_all_raw_trim$Timezone <- "UTC"
+df_all_raw_trim$QAQC[is.na(df_all_raw_trim$QAQC)] <- "[blank]"
+df_all_raw_trim$qaqc_code <- paste0(df_all_raw_trim$qual_rating, "/", df_all_raw_trim$QAQC)
 
 length(unique(df_all_raw_trim$sensor_name))
 length(unique(df_all_raw_trim$siteId))
@@ -58,7 +60,7 @@ length(unique(df_all_raw_trim$siteId))
 # compile all data
 df_sensors_all <- 
   df_all_raw_trim |> 
-  dplyr::select(datetime, Timezone, raw_output = condUncal, binary_flow = wetdry, qaqc_code = QAQC, sensor_name)
+  dplyr::select(datetime, Timezone, raw_output = condUncal, binary_flow = wetdry, qaqc_code, sensor_name)
 
 # write one CSV file per sensor
 for (s in unique(df_sensors_all$sensor_name)){
@@ -103,7 +105,9 @@ sf_watershed <-
   st_read(file.path("results", "Konza_Watershed.shp")) |> 
   st_transform(crs = 4326)
 
-st_write(sf_watershed, file.path(path_out, "SFKC.shp"))
+st_write(sf_watershed, file.path(path_out, "SFKC.shp"), append = F)
+
+as.numeric(st_area(sf_watershed)) / (1000*1000)
 
 # Subset to N04D above weir ----------------------------------------------------------
 
@@ -122,7 +126,7 @@ df_sensors_N04D <-
 # write one CSV file per sensor
 for (s in unique(df_sensors_N04D$sensor_name)){
   df_s <- subset(df_sensors_N04D, sensor_name == s)
-  write_csv(df_s, file.path(path_out, "Sensors_N04D", paste0("Sensor_", s, "_SFKC.csv")))
+  write_csv(df_s, file.path(path_out, "Sensors_N04D", paste0("Sensor_", s, "_N04D.csv")))
 }
 
 ## save binary matrix
@@ -138,14 +142,122 @@ df_binary_N04D <-
 
 write_csv(df_binary_N04D, file.path(path_out, "Binary_N04D.csv"))
 
-# dups <- 
-#   df_sensors_all |>
-#   dplyr::summarise(n = dplyr::n(), .by = c(datetime, Timezone, sensor_name)) |>
-#   dplyr::filter(n > 1L) 
-
 ## save lat/long data
 df_location_N04D <-
   df_location |> 
   subset(sensor_name %in% df_sensors_N04D$sensor_name)
 
 write_csv(df_location_N04D, file.path(path_out, "Locations_N04D.csv"))
+
+## save watershed boundary
+sf_watershed_N04D <- 
+  st_read(file.path("results", "N04D_Watershed.shp")) |> 
+  st_transform(crs = 4326)
+
+st_write(sf_watershed_N04D, file.path(path_out, "N04D.shp"), append = F)
+
+as.numeric(st_area(sf_watershed_N04D)) / (1000*1000)
+
+# Subset to N01B above weir ----------------------------------------------------------
+
+stics_N01B <- paste0("01M", sprintf("%02d", seq(1, 6)))
+
+## save 1 CSV per watershed
+# compile all data
+df_sensors_N01B <- 
+  df_sensors_all |> 
+  mutate(siteId = substr(sensor_name, 1, 5)) |> 
+  subset(siteId %in% stics_N01B) |> 
+  dplyr::select(-siteId)
+
+# write one CSV file per sensor
+for (s in unique(df_sensors_N01B$sensor_name)){
+  df_s <- subset(df_sensors_N01B, sensor_name == s)
+  write_csv(df_s, file.path(path_out, "Sensors_N01B", paste0("Sensor_", s, "_N01B.csv")))
+}
+
+## save binary matrix
+# binary matrix
+df_binary_N01B <- 
+  df_sensors_N01B |> 
+  pivot_wider(id_cols = c("datetime", "Timezone"), 
+              values_from = binary_flow, 
+              names_from = sensor_name,
+              names_sort = TRUE,
+              values_fill = NA) |> 
+  arrange(datetime)
+
+write_csv(df_binary_N01B, file.path(path_out, "Binary_N01B.csv"))
+
+## save lat/long data
+df_location_N01B <-
+  df_location |> 
+  subset(sensor_name %in% df_sensors_N01B$sensor_name)
+
+write_csv(df_location_N01B, file.path(path_out, "Locations_N01B.csv"))
+
+## save watershed boundary
+sf_watershed_N01B <- 
+  st_read(file.path("results", "N01B_Watershed.shp")) |> 
+  st_transform(crs = 4326)
+
+st_write(sf_watershed_N01B, file.path(path_out, "N01B.shp"), append = F)
+
+as.numeric(st_area(sf_watershed_N01B)) / (1000*1000)
+
+
+# Subset to N02B above weir ----------------------------------------------------------
+
+stics_N02B <- paste0("02M", sprintf("%02d", seq(3, 11)))
+
+## save 1 CSV per watershed
+# compile all data
+df_sensors_N02B <- 
+  df_sensors_all |> 
+  mutate(siteId = substr(sensor_name, 1, 5)) |> 
+  subset(siteId %in% stics_N02B) |> 
+  dplyr::select(-siteId)
+
+# write one CSV file per sensor
+for (s in unique(df_sensors_N02B$sensor_name)){
+  df_s <- subset(df_sensors_N02B, sensor_name == s)
+  write_csv(df_s, file.path(path_out, "Sensors_N02B", paste0("Sensor_", s, "_N02B.csv")))
+}
+
+## save binary matrix
+# binary matrix
+df_binary_N02B <- 
+  df_sensors_N02B |> 
+  pivot_wider(id_cols = c("datetime", "Timezone"), 
+              values_from = binary_flow, 
+              names_from = sensor_name,
+              names_sort = TRUE,
+              values_fill = NA) |> 
+  arrange(datetime)
+
+write_csv(df_binary_N02B, file.path(path_out, "Binary_N02B.csv"))
+
+## save lat/long data
+df_location_N02B <-
+  df_location |> 
+  subset(sensor_name %in% df_sensors_N02B$sensor_name)
+
+write_csv(df_location_N02B, file.path(path_out, "Locations_N02B.csv"))
+
+## save watershed boundary
+sf_watershed_N02B <- 
+  st_read(file.path("results", "N02B_Watershed.shp")) |> 
+  st_transform(crs = 4326)
+
+st_write(sf_watershed_N02B, file.path(path_out, "N02B.shp"), append = F)
+
+as.numeric(st_area(sf_watershed_N02B)) / (1000*1000)
+
+
+# compare watersheds ------------------------------------------------------
+
+ggplot() +
+  geom_sf(data = sf_watershed) +
+  geom_sf(data = sf_watershed_N04D, color = "red") +
+  geom_sf(data = sf_watershed_N01B, color = "green") +
+  geom_sf(data = sf_watershed_N02B, color = "purple")

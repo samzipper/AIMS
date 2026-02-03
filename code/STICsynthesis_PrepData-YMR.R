@@ -24,6 +24,8 @@ stic_files <- fs::dir_ls(path_data, regexp = "\\.csv$")
 df_all_raw <- bind_rows(lapply(stic_files, read_csv, col_types = "cTccccnncnccc"))
 df_all_raw$siteId_subloc <- paste0(df_all_raw$siteId, "-", df_all_raw$sublocation)
 df_all_raw$Timezone <- "UTC"
+df_all_raw$QAQC[is.na(df_all_raw$QAQC)] <- "[blank]"
+df_all_raw$qaqc_code <- paste0(df_all_raw$qual_rating, "/", df_all_raw$QAQC)
 length(unique(df_all_raw$siteId))
 length(unique(df_all_raw$siteId_subloc))
 
@@ -37,7 +39,7 @@ dups <-
 # compile all data
 df_sensors_all <- 
   df_all_raw |> 
-  dplyr::select(datetime, Timezone, raw_output = condUncal, binary_flow = wetdry, qaqc_code = QAQC, sensor_name = siteId) |> 
+  dplyr::select(datetime, Timezone, raw_output = condUncal, binary_flow = wetdry, qaqc_code, sensor_name = siteId) |> 
   arrange(sensor_name, datetime)
 
 # write one CSV file per sensor
